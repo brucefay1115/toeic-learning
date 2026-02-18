@@ -18,9 +18,8 @@
             --card-bg: #FFFFFF;
             --text-main: #1C1C1E;
             --text-sub: #8E8E93;
-            --highlight: #FFD60A;
-            --word-active: #5856D6;
-            --word-bg-active: #E0E0FF;
+            --highlight: #FFD60A; /* Yellow Highlighting */
+            --highlight-text: #000000;
             --radius: 20px;
             --shadow: 0 4px 20px rgba(0,0,0,0.06);
             --safe-area-bottom: env(safe-area-inset-bottom);
@@ -39,7 +38,6 @@
 
         /* Utility */
         .hidden { display: none !important; }
-        .flex-center { display: flex; align-items: center; justify-content: center; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
 
         /* Header */
@@ -165,9 +163,11 @@
             min-height: 200px;
         }
         
-        /* New Structure for Interleaved Content */
+        /* Segment Structure */
         .segment-row {
             margin-bottom: 16px;
+            border-radius: 8px;
+            transition: background 0.2s;
         }
         
         .segment-en {
@@ -175,6 +175,16 @@
             line-height: 1.6;
             color: #333;
             margin-bottom: 4px;
+            padding: 4px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        /* Active Sentence Highlight */
+        .segment-en.active {
+            background-color: var(--highlight);
+            color: var(--highlight-text);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .segment-zh {
@@ -188,20 +198,9 @@
         }
 
         .word-interactive {
-            position: relative;
             cursor: pointer;
-            border-radius: 4px;
-            padding: 1px 0;
-            transition: background 0.1s, color 0.1s;
         }
 
-        .word-interactive.active {
-            background-color: var(--word-bg-active);
-            color: var(--word-active);
-            font-weight: 600;
-        }
-
-        /* Translation Toggle Button */
         .translate-toggle-btn {
             display: inline-flex;
             align-items: center;
@@ -216,16 +215,6 @@
             margin-top: 10px;
             cursor: pointer;
             width: 100%;
-        }
-
-        /* Fallback for old history format */
-        .old-translation-block {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: var(--text-sub);
-            font-size: 16px;
-            line-height: 1.6;
         }
 
         /* Audio Player */
@@ -481,9 +470,9 @@
         targetScore: 700,
         currentData: null,
         audioBlobUrl: null,
-        words: [], 
+        segmentMetadata: [], // Store { startPct, endPct, element } for sentence sync
         playbackSpeed: 1.0,
-        activeWordIndex: -1,
+        activeSegmentIndex: -1,
         longPressTimer: null,
         showTranslation: false
     };
@@ -553,29 +542,6 @@
         } catch (e) { console.error("Cache save failed", e); }
     }
 
-    function wordWeight(token) {
-        const w = token.replace(/[^a-zA-Z0-9']/g, '');
-        if (!w) return 0;
-        const lower = w.toLowerCase();
-        const fast = new Set(['a','an','the','to','of','in','on','at','for','and','or','but','is','are','was','were','be','been','being','do','does','did','i','you','he','she','we','they','it','this','that','these','those','as','by','from','with','not','no','if','than','then','so']);
-        let weight = Math.max(1.6, w.length * 1.0);
-        if (fast.has(lower)) weight *= 0.55;
-        const digits = (w.match(/\d/g) || []).length;
-        if (digits) weight += digits * 2.5;
-        if (w.length >= 8) weight += 1.5;
-        return weight;
-    }
-
-    function tokenWeight(token) {
-        if (!token) return 0;
-        let p = 0;
-        if (/[,:;]/.test(token)) p += 1.2;
-        if (/[.!?]/.test(token)) p += 2.4;
-        const hasWordChar = /[a-zA-Z0-9]/.test(token);
-        const base = hasWordChar ? wordWeight(token) : 0.25;
-        return base + p;
-    }
-
     /**
      * CORE LOGIC: GEMINI API INTEGRATION
      */
@@ -617,10 +583,10 @@
     };
 
     async function fetchGeminiText(score) {
-        // Updated Prompt to request segments
+        // Updated Prompt: Approx 30 seconds (60-80 words)
         const prompt = `
             You are a strict TOEIC tutor. Target Score: ${score}.
-            Task: Generate a reading comprehension passage (150-200 words) about a random business or daily life scenario suitable for this level.
+            Task: Generate a SHORT reading comprehension passage (approx 60-80 words, 30 seconds reading time) about a random business or daily life scenario suitable for this level.
             Output JSON strictly:
             {
                 "segments": [
@@ -732,32 +698,25 @@
     }
 
     /**
-     * RENDER LOGIC (UPDATED FOR INTERLEAVED TRANSLATION)
+     * RENDER LOGIC (Segment-Based)
      */
     function renderContent(data) {
         document.getElementById('learningArea').classList.remove('hidden');
         const container = document.getElementById('articleContainer');
         container.innerHTML = '';
-        state.words = [];
+        state.segmentMetadata = []; // Reset sync data
 
-        // Compatibility check: if no segments (old history), treat full article as one segment
+        // Compatibility check
         const segments = data.segments || [{ en: data.article, zh: data.translation }];
 
-        // 1. Calculate TOTAL weights for the entire combined text first
-        let totalWeightedChars = 0;
-        const segmentWeights = [];
-        
-        segments.forEach(seg => {
-            const tks = seg.en.split(/(\s+)/);
-            const w = tks.reduce((acc, t) => acc + tokenWeight(t), 0);
-            segmentWeights.push(w);
-            totalWeightedChars += w;
-        });
+        // 1. Calculate TOTAL text length for sync distribution
+        let totalChars = 0;
+        segments.forEach(seg => { totalChars += seg.en.length; });
 
         // 2. Render Loop
-        let globalAccumulator = 0;
+        let globalCharAccumulator = 0;
 
-        segments.forEach((seg, sIndex) => {
+        segments.forEach((seg, index) => {
             const rowDiv = document.createElement('div');
             rowDiv.className = 'segment-row';
 
@@ -765,51 +724,36 @@
             const enDiv = document.createElement('div');
             enDiv.className = 'segment-en';
             
-            // --- Word Generation & Weighting ---
-            const sentStartPct = globalAccumulator / totalWeightedChars;
-            const sentEndPct = (globalAccumulator + segmentWeights[sIndex]) / totalWeightedChars;
-            const sentDurationPct = sentEndPct - sentStartPct;
-
-            const tokens = seg.en.split(/(\s+)/);
-            const weights = tokens.map(t => tokenWeight(t));
-            const totalW = weights.reduce((a, b) => a + b, 0) || 1;
-            let accW = 0;
-
-            tokens.forEach((fragment, idx) => {
+            // Render words inside segment for interactivity
+            const words = seg.en.split(/(\s+)/);
+            words.forEach(fragment => {
                 if (!/[a-zA-Z0-9]/.test(fragment)) {
                     enDiv.appendChild(document.createTextNode(fragment));
-                    accW += weights[idx];
                     return;
                 }
-
                 const cleanWord = fragment.replace(/[^a-zA-Z0-9']/g, '');
                 const wordSpan = document.createElement('span');
                 wordSpan.innerText = fragment;
                 wordSpan.className = 'word-interactive';
-
                 addLongPressListener(wordSpan, cleanWord);
                 enDiv.appendChild(wordSpan);
-
-                const startLocal = accW / totalW;
-                const endLocal = (accW + weights[idx]) / totalW;
-
-                const globalStart = sentStartPct + (startLocal * sentDurationPct);
-                const globalEnd   = sentStartPct + (endLocal   * sentDurationPct);
-
-                state.words.push({
-                    element: wordSpan,
-                    startPct: globalStart,
-                    endPct: globalEnd
-                });
-
-                accW += weights[idx];
             });
 
-            globalAccumulator += segmentWeights[sIndex];
+            // Sync Metadata
+            const startPct = globalCharAccumulator / totalChars;
+            const endPct = (globalCharAccumulator + seg.en.length) / totalChars;
+            
+            state.segmentMetadata.push({
+                element: enDiv,
+                startPct: startPct,
+                endPct: endPct
+            });
+
+            globalCharAccumulator += seg.en.length;
 
             // Chinese Line
             const zhDiv = document.createElement('div');
-            zhDiv.className = 'segment-zh hidden'; // Default Hidden
+            zhDiv.className = 'segment-zh hidden';
             zhDiv.innerText = seg.zh;
 
             rowDiv.appendChild(enDiv);
@@ -840,7 +784,6 @@
             gramList.innerHTML += `<li class="grammar-item"><span class="grammar-bullet">•</span><span>${g}</span></li>`;
         });
         
-        // Reset toggle state
         state.showTranslation = false;
         updateTranslationVisibility();
     }
@@ -933,7 +876,7 @@
         }
     }
 
-    state.activeWordIndex = -1;
+    state.activeSegmentIndex = -1;
     audioEl.ontimeupdate = () => {
         const duration = audioEl.duration;
         if (!duration) return;
@@ -941,30 +884,31 @@
         const pct = current / duration;
         progressBar.style.width = `${pct * 100}%`;
 
+        // Segment Sync Logic
         let idx = -1;
-        for (let i = 0; i < state.words.length; i++) {
-            const w = state.words[i];
-            if (pct >= w.startPct && pct < w.endPct) { idx = i; break; }
+        for (let i = 0; i < state.segmentMetadata.length; i++) {
+            const seg = state.segmentMetadata[i];
+            if (pct >= seg.startPct && pct < seg.endPct) { idx = i; break; }
         }
 
-        if (idx !== state.activeWordIndex) {
-            if (state.activeWordIndex >= 0 && state.words[state.activeWordIndex]) {
-                state.words[state.activeWordIndex].element.classList.remove('active');
+        if (idx !== state.activeSegmentIndex) {
+            if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
+                state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
             }
-            if (idx >= 0 && state.words[idx]) {
-                state.words[idx].element.classList.add('active');
+            if (idx >= 0 && state.segmentMetadata[idx]) {
+                state.segmentMetadata[idx].element.classList.add('active');
             }
-            state.activeWordIndex = idx;
+            state.activeSegmentIndex = idx;
         }
     };
 
     audioEl.onended = () => {
         playBtn.innerText = '▶';
         progressBar.style.width = '0%';
-        if (state.activeWordIndex >= 0 && state.words[state.activeWordIndex]) {
-            state.words[state.activeWordIndex].element.classList.remove('active');
+        if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
+            state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
         }
-        state.activeWordIndex = -1;
+        state.activeSegmentIndex = -1;
     };
 
     /**
@@ -1082,13 +1026,7 @@
             div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${item.audio ? '🔊' : ''}</span></div>`;
             div.onclick = (e) => {
                 if(e.target.classList.contains('delete-btn')) return;
-                state.currentData = item.data;
-                renderContent(item.data);
-                if (item.audio) setupAudio(item.audio);
-                else {
-                    const randomVoice = VOICE_NAMES[Math.floor(Math.random() * VOICE_NAMES.length)];
-                    fetchGeminiTTS(item.data.article, randomVoice).then(base64 => setupAudio(base64));
-                }
+                loadSession(item);
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             };
             const delBtn = document.createElement('button');
@@ -1098,6 +1036,16 @@
             div.appendChild(delBtn);
             list.appendChild(div);
         });
+    }
+
+    function loadSession(item) {
+        state.currentData = item.data;
+        renderContent(item.data);
+        if (item.audio) setupAudio(item.audio);
+        else {
+            const randomVoice = VOICE_NAMES[Math.floor(Math.random() * VOICE_NAMES.length)];
+            fetchGeminiTTS(item.data.article, randomVoice).then(base64 => setupAudio(base64));
+        }
     }
 
     function deleteHistoryItem(index) {
@@ -1114,7 +1062,16 @@
         }
     }
 
+    // Auto-load last session on fresh load (Fixes refresh bug)
+    function loadLastSession() {
+        const history = JSON.parse(localStorage.getItem('toeic_history') || '[]');
+        if (history.length > 0) {
+            loadSession(history[0]);
+        }
+    }
+
     renderHistory();
+    window.onload = loadLastSession; // Restore state on load
 </script>
 </body>
 </html>
