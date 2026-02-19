@@ -254,7 +254,7 @@
         }
         .wm-btn.secondary { background: #f0f0f0; color: #333; margin-top: 10px; }
         .wm-btn.save-btn { background: var(--success); margin-top: 10px; }
-        .wm-btn.saved-btn { background: #e0e0e0; color: var(--text-sub); margin-top: 10px; cursor: default; }
+        .wm-btn.saved-btn { background: #e8f5e9; color: var(--success); border: 1.5px solid var(--success); margin-top: 10px; cursor: pointer; }
         .wm-actions { display: flex; flex-direction: column; margin-bottom: 10px; }
 
         .loader { border: 3px solid rgba(0,0,0,0.1); border-left-color: var(--primary); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px; }
@@ -619,7 +619,8 @@
         activeSegmentIndex: -1,
         showTranslation: false,
         showEnglish: true,
-        highlightedElement: null
+        highlightedElement: null,
+        playUntilPct: null
     };
 
     const SRS_INTERVALS = [0, 1, 3, 7, 14, 30];
@@ -983,6 +984,7 @@
             const authArea = document.getElementById('cloudAuthArea');
             const userArea = document.getElementById('cloudUserArea');
             const indicator = document.getElementById('syncIndicator');
+            const actionsEl = userArea.querySelector('.cloud-actions');
 
             if (loggedIn) {
                 authArea.classList.add('hidden');
@@ -995,11 +997,29 @@
                 document.getElementById('cloudAvatar').textContent = (name || 'G')[0].toUpperCase();
                 const lastSync = await DB.getSetting('cloud_last_sync');
                 document.getElementById('cloudLastSync').textContent = lastSync ? `上次同步：${lastSync}` : '尚未同步';
+                actionsEl.innerHTML = `
+                    <button class="cloud-action-btn primary" id="btnBackupNow" onclick="DriveSync.backupNow()">立即備份</button>
+                    <button class="cloud-action-btn" id="btnRestore" onclick="DriveSync.restore()">從雲端還原</button>
+                    <button class="cloud-action-btn danger" id="btnCloudLogout" onclick="DriveSync.logout()">登出</button>`;
             } else {
-                authArea.classList.remove('hidden');
-                userArea.classList.add('hidden');
                 const enabled = await DB.getSetting('cloud_sync_enabled');
-                if (!enabled) indicator.classList.remove('visible');
+                const email = await DB.getSetting('cloud_user_email');
+                if (enabled && email) {
+                    authArea.classList.add('hidden');
+                    userArea.classList.remove('hidden');
+                    const name = await DB.getSetting('cloud_user_name') || email;
+                    document.getElementById('cloudUserName').textContent = name;
+                    document.getElementById('cloudUserEmail').textContent = email;
+                    document.getElementById('cloudAvatar').textContent = (name || 'G')[0].toUpperCase();
+                    document.getElementById('cloudLastSync').textContent = '連線已過期，請重新連線';
+                    actionsEl.innerHTML = `
+                        <button class="cloud-action-btn primary" onclick="DriveSync.login()">重新連線</button>
+                        <button class="cloud-action-btn danger" onclick="DriveSync.logout()">登出</button>`;
+                } else {
+                    authArea.classList.remove('hidden');
+                    userArea.classList.add('hidden');
+                    indicator.classList.remove('visible');
+                }
             }
         },
     };
@@ -1182,6 +1202,7 @@
             replayBtn.onclick = (e) => {
                 e.stopPropagation();
                 if (audioEl.duration) {
+                    state.playUntilPct = endPct;
                     audioEl.currentTime = startPct * audioEl.duration;
                     if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; }
                 }
@@ -1233,10 +1254,15 @@
                 if (existing) { saveBtn.innerHTML = ICONS.bookmarkFill; saveBtn.classList.add('saved'); }
             });
             saveBtn.onclick = async () => {
-                if (saveBtn.classList.contains('saved')) return;
-                await DB.addSavedWord({ id: v.word.toLowerCase(), en: v.word, zh: v.def, pos: v.pos, ipa: v.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
-                saveBtn.innerHTML = ICONS.bookmarkFill;
-                saveBtn.classList.add('saved');
+                if (saveBtn.classList.contains('saved')) {
+                    await DB.deleteSavedWord(v.word.toLowerCase());
+                    saveBtn.innerHTML = ICONS.bookmark;
+                    saveBtn.classList.remove('saved');
+                } else {
+                    await DB.addSavedWord({ id: v.word.toLowerCase(), en: v.word, zh: v.def, pos: v.pos, ipa: v.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
+                    saveBtn.innerHTML = ICONS.bookmarkFill;
+                    saveBtn.classList.add('saved');
+                }
             };
             vocabContainer.appendChild(card);
         });
@@ -1288,18 +1314,18 @@
     }
     function pcmToWav(pcm, sr) { const b = new ArrayBuffer(44+pcm.length), v = new DataView(b); writeString(v,0,'RIFF'); v.setUint32(4,36+pcm.length,true); writeString(v,8,'WAVE'); writeString(v,12,'fmt '); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true); v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true); writeString(v,36,'data'); v.setUint32(40,pcm.length,true); new Uint8Array(b,44).set(pcm); return new Blob([b],{type:'audio/wav'}); }
     function writeString(v, o, s) { for (let i = 0; i < s.length; i++) v.setUint8(o+i, s.charCodeAt(i)); }
-    playBtn.onclick = () => { if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; } else { audioEl.pause(); playBtn.innerHTML = ICONS.play; } };
-    progressContainer.onclick = (e) => { const r = progressContainer.getBoundingClientRect(); const p = (e.clientX - r.left) / r.width; if (audioEl.duration) { audioEl.currentTime = p * audioEl.duration; } };
+    playBtn.onclick = () => { state.playUntilPct = null; if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; } else { audioEl.pause(); playBtn.innerHTML = ICONS.play; } };
+    progressContainer.onclick = (e) => { state.playUntilPct = null; const r = progressContainer.getBoundingClientRect(); const p = (e.clientX - r.left) / r.width; if (audioEl.duration) { audioEl.currentTime = p * audioEl.duration; } };
     state.activeSegmentIndex = -1;
-    audioEl.ontimeupdate = () => { const d = audioEl.duration; if (!d) return; const p = audioEl.currentTime / d; progressBar.style.width = `${p*100}%`; let idx = -1; for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } } if (idx !== state.activeSegmentIndex) { if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active'); state.activeSegmentIndex = idx; } };
+    audioEl.ontimeupdate = () => { const d = audioEl.duration; if (!d) return; const p = audioEl.currentTime / d; progressBar.style.width = `${p*100}%`; if (state.playUntilPct !== null && p >= state.playUntilPct) { audioEl.pause(); playBtn.innerHTML = ICONS.play; state.playUntilPct = null; return; } let idx = -1; for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } } if (idx !== state.activeSegmentIndex) { if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active'); state.activeSegmentIndex = idx; } };
     audioEl.onended = () => { playBtn.innerHTML = ICONS.play; progressBar.style.width = '0%'; if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); state.activeSegmentIndex = -1; };
 
     /* Long Press */
     function addLongPressListener(element, wordText) {
         let pressTimer;
-        const start = (e) => { if (e.type === 'mousedown' && e.button !== 0) return; e.preventDefault(); element.classList.add('word-pressing'); pressTimer = setTimeout(() => { element.classList.remove('word-pressing'); element.classList.add('word-highlighted'); if (state.highlightedElement && state.highlightedElement !== element) state.highlightedElement.classList.remove('word-highlighted'); state.highlightedElement = element; showWordModal(wordText); }, 600); };
+        const start = (e) => { if (e.type === 'mousedown' && e.button !== 0) return; element.classList.add('word-pressing'); pressTimer = setTimeout(() => { element.classList.remove('word-pressing'); element.classList.add('word-highlighted'); if (state.highlightedElement && state.highlightedElement !== element) state.highlightedElement.classList.remove('word-highlighted'); state.highlightedElement = element; showWordModal(wordText); }, 600); };
         const cancel = () => { clearTimeout(pressTimer); element.classList.remove('word-pressing'); };
-        element.addEventListener('touchstart', start, { passive: false }); element.addEventListener('touchend', cancel); element.addEventListener('touchmove', cancel);
+        element.addEventListener('touchstart', start, { passive: true }); element.addEventListener('touchend', cancel); element.addEventListener('touchmove', cancel);
         element.addEventListener('mousedown', start); element.addEventListener('mouseup', cancel); element.addEventListener('mouseleave', cancel);
         element.oncontextmenu = (e) => { e.preventDefault(); return false; };
     }
@@ -1339,8 +1365,18 @@
     async function renderSaveButton(container, word, vocabItem) {
         const existing = await DB.getSavedWord(word.toLowerCase());
         const btn = document.createElement('button');
-        if (existing) { btn.className = 'wm-btn saved-btn'; btn.innerHTML = `${ICONS.bookmarkFill} 已儲存`; btn.disabled = true; }
-        else { btn.className = 'wm-btn save-btn'; btn.innerHTML = `${ICONS.bookmark} 儲存到單字本`; btn.onclick = async () => { await DB.addSavedWord({ id: word.toLowerCase(), en: vocabItem.word || word, zh: vocabItem.def, pos: vocabItem.pos, ipa: vocabItem.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 }); btn.className = 'wm-btn saved-btn'; btn.innerHTML = `${ICONS.bookmarkFill} 已儲存`; btn.disabled = true; btn.onclick = null; }; }
+        const setSaved = () => { btn.className = 'wm-btn saved-btn'; btn.innerHTML = `${ICONS.bookmarkFill} 已儲存`; };
+        const setUnsaved = () => { btn.className = 'wm-btn save-btn'; btn.innerHTML = `${ICONS.bookmark} 儲存到單字本`; };
+        if (existing) setSaved(); else setUnsaved();
+        btn.onclick = async () => {
+            if (await DB.getSavedWord(word.toLowerCase())) {
+                await DB.deleteSavedWord(word.toLowerCase());
+                setUnsaved();
+            } else {
+                await DB.addSavedWord({ id: word.toLowerCase(), en: vocabItem.word || word, zh: vocabItem.def, pos: vocabItem.pos, ipa: vocabItem.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
+                setSaved();
+            }
+        };
         container.appendChild(btn);
     }
     function closeModal() { document.getElementById('wordModal').classList.remove('active'); if (state.highlightedElement) { state.highlightedElement.classList.remove('word-highlighted'); state.highlightedElement = null; } }
