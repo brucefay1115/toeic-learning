@@ -137,6 +137,14 @@ AI 生成文章後自動跳到「學習」頁面：
 
 ---
 
+## 支持這個專案
+
+如果覺得這個工具對你有幫助，歡迎請我喝杯咖啡，支持我持續開發更多功能！
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow)](https://buymeacoffee.com/brucefay110)
+
+---
+
 ## 授權
 
 MIT License
