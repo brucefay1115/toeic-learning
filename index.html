@@ -34,13 +34,11 @@
             color: var(--text-main);
             margin: 0;
             padding: 0;
-            /* Bottom padding handles player or safe area */
             padding-bottom: calc(20px + var(--safe-area-bottom));
         }
 
         /* Utility */
         .hidden { display: none !important; }
-        .flex-center { display: flex; align-items: center; justify-content: center; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; padding-bottom: 120px; }
 
         /* VIEW MANAGEMENT */
@@ -50,7 +48,7 @@
             transition: opacity 0.3s ease;
         }
 
-        /* --- HOME VIEW STYLES --- */
+        /* --- HOME VIEW --- */
         .home-header {
             padding: 40px 20px 20px;
             background: white;
@@ -91,7 +89,7 @@
         .generate-btn:active { transform: scale(0.98); }
         .generate-btn:disabled { opacity: 0.7; cursor: not-allowed; }
 
-        /* History List Styling */
+        /* History List */
         .history-section { padding: 0 20px; margin-top: 10px; }
         .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .history-item {
@@ -114,7 +112,7 @@
             font-size: 18px; margin-left: 10px; flex-shrink: 0;
         }
 
-        /* --- STUDY VIEW STYLES --- */
+        /* --- STUDY VIEW --- */
         .study-nav {
             position: sticky; top: 0; z-index: 100;
             background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
@@ -123,7 +121,7 @@
         }
         .back-btn { font-size: 16px; font-weight: 600; color: var(--primary); background: none; border: none; display: flex; align-items: center; }
         .nav-actions { display: flex; gap: 10px; }
-        .nav-icon-btn { background: #f0f0f0; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        .nav-icon-btn { background: #f0f0f0; border: none; width: 36px; height: 36px; border-radius: 50%; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
         .nav-icon-btn.active { background: var(--primary); color: white; }
 
         .article-card {
@@ -131,46 +129,28 @@
             box-shadow: var(--shadow); margin-bottom: 20px; min-height: 200px;
         }
 
-        /* Article Segments */
         .segment-row { margin-bottom: 18px; }
         .segment-en {
             font-size: 20px; line-height: 1.6; color: #333; margin-bottom: 6px;
             transition: filter 0.3s ease, opacity 0.3s ease;
         }
-        
-        /* Blind Mode Effect */
-        .blind-mode .segment-en {
-            filter: blur(5px);
-            opacity: 0.3;
-            user-select: none; /* Prevent cheating */
-        }
-        .blind-mode .segment-en.active-sentence {
-            /* Optional: Reveal only current sentence? Or keep blurred? Let's keep blurred for hard mode */
-            /* If user wants to see current, they can toggle. Or we can highlight background but keep text blurred */
-            filter: blur(4px); /* Slightly less blur on active maybe? */
-            background-color: rgba(255, 214, 10, 0.1);
-        }
-
+        .blind-mode .segment-en { filter: blur(5px); opacity: 0.3; user-select: none; }
         .segment-zh {
             font-size: 15px; color: var(--text-sub); line-height: 1.5;
             padding-left: 10px; border-left: 3px solid var(--primary-light);
             margin-top: 8px;
         }
 
-        /* Interactive Word - Fix for iPhone Conflicts */
+        /* Interactive Word */
         .word-interactive {
             position: relative; cursor: pointer; border-radius: 4px; padding: 1px 0;
             transition: background 0.1s, color 0.1s;
-            /* CRITICAL: Disable native callouts */
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none; 
+            -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; 
         }
-        .word-interactive.active {
-            background-color: var(--word-bg-active);
-            color: var(--word-active);
-            font-weight: 700;
-        }
+        /* Active (Speaking) */
+        .word-interactive.active { background-color: var(--word-bg-active); color: var(--word-active); font-weight: 700; }
+        /* Pressing State (Visual Feedback for Long Press) */
+        .word-interactive.pressing { background-color: var(--accent); color: white; }
 
         /* Audio Player */
         .player-bar {
@@ -208,6 +188,7 @@
             padding-bottom: max(30px, var(--safe-area-bottom)); max-height: 80vh; overflow-y: auto;
         }
         .word-modal.active { transform: translateY(0); }
+        .wm-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .wm-word { font-size: 32px; font-weight: 800; color: var(--text-main); }
         .wm-meta { color: var(--text-sub); margin-bottom: 15px; font-size: 18px; }
         .wm-def { font-size: 20px; margin-bottom: 15px; line-height: 1.4; }
@@ -221,16 +202,42 @@
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid white; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* Vocab and Grammar Cards */
+        /* Content Cards */
+        .section-title { font-size: 18px; font-weight: 700; margin: 30px 0 15px; }
+        .vocab-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
         .vocab-card { background: white; padding: 15px; border-radius: 12px; border-left: 4px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 10px; }
         .vocab-word { font-size: 18px; font-weight: 700; }
-        .grammar-item { background: white; padding: 15px; border-radius: 12px; margin-bottom: 8px; display: flex; }
-        .grammar-bullet { color: var(--primary); margin-right: 10px; font-weight: bold; }
+        
+        /* Phrase/Idiom Cards */
+        .phrase-list { list-style: none; padding: 0; }
+        .phrase-card { 
+            background: white; padding: 16px; border-radius: 12px; margin-bottom: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); border-left: 4px solid var(--primary);
+        }
+        .phrase-title { font-size: 18px; font-weight: 700; color: var(--primary); display: flex; justify-content: space-between; align-items: center; }
+        .phrase-meaning { font-size: 16px; font-weight: 500; margin: 5px 0; color: #333; }
+        .phrase-desc { font-size: 14px; color: #666; margin-bottom: 8px; line-height: 1.4; }
+        .phrase-ex { 
+            background: #F2F2F7; padding: 8px 12px; border-radius: 8px; 
+            font-style: italic; color: #555; font-size: 14px; margin-top: 5px;
+        }
+
+        .mini-speaker {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 28px; height: 28px; border-radius: 50%; background: #f0f0f0;
+            border: none; cursor: pointer; font-size: 14px; margin-left: 8px; vertical-align: middle;
+        }
+        .large-speaker {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: var(--primary); color: white; border: none;
+            cursor: pointer; font-size: 24px; margin: 0 auto; box-shadow: 0 4px 10px rgba(88, 86, 214, 0.3);
+        }
     </style>
 </head>
 <body>
 
-    <!-- VIEW 1: HOME (Generation & History) -->
+    <!-- VIEW 1: HOME -->
     <div id="viewHome" class="view-section">
         <div class="home-header">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -257,18 +264,15 @@
                 <button onclick="clearHistory()" style="color:#FF3B30; background:none; border:none; font-size:12px;">清除全部</button>
             </div>
             <div id="historyList">
-                <!-- History Items injected here -->
                 <div style="text-align:center; color:#999; margin-top:30px;">載入中...</div>
             </div>
         </div>
     </div>
 
-    <!-- VIEW 2: STUDY (Player & Content) -->
+    <!-- VIEW 2: STUDY -->
     <div id="viewStudy" class="view-section hidden">
         <nav class="study-nav">
-            <button class="back-btn" onclick="goHome()">
-                <span>← Back</span>
-            </button>
+            <button class="back-btn" onclick="goHome()"><span>← Back</span></button>
             <div class="nav-actions">
                 <button class="nav-icon-btn" id="btnToggleBlind" onclick="toggleBlindMode()">👁️</button>
                 <button class="nav-icon-btn" id="btnToggleTrans" onclick="toggleTranslation()">文</button>
@@ -276,22 +280,19 @@
         </nav>
 
         <div class="container">
-            <!-- Article -->
             <div class="article-card">
                 <div id="articleContainer"></div>
             </div>
 
-            <!-- Vocabulary -->
             <h3 class="section-title">核心單字 Vocabulary</h3>
             <div class="vocab-grid" id="vocabList"></div>
 
-            <!-- Grammar -->
-            <h3 class="section-title">文法解析 Grammar Point</h3>
-            <ul class="grammar-list" id="grammarList"></ul>
+            <h3 class="section-title">重要片語 Key Phrases</h3>
+            <div id="phraseList"></div>
         </div>
     </div>
 
-    <!-- PLAYER (Global but visible in Study) -->
+    <!-- PLAYER -->
     <div class="player-bar hidden" id="playerBar">
         <button class="play-btn" id="btnPlayPause">▶</button>
         <div class="progress-container" id="progressContainer">
@@ -300,22 +301,23 @@
         <button class="speed-btn" id="btnSpeed">1.0x</button>
     </div>
 
-    <!-- MODALS -->
+    <!-- WORD MODAL -->
     <div class="word-modal" id="wordModal">
         <div class="wm-header">
             <div class="wm-word" id="wmWord">Word</div>
-            <div style="font-size:24px; cursor:pointer;" id="btnWordAudio">🔊</div>
+            <div class="large-speaker" id="btnWordAudio">🔊</div>
         </div>
-        <div class="wm-meta"><span id="wmPos">n.</span> <span id="wmIpa">/IPA/</span></div>
-        <div class="wm-def" id="wmDef">Definition</div>
+        <div class="wm-meta"><span id="wmPos">...</span> <span id="wmIpa">...</span></div>
+        <div class="wm-def" id="wmDef">...</div>
         <div style="font-style:italic; color:#666; margin-bottom:15px;" id="wmEx">
-            <span id="wmExText">Example.</span>
-            <span style="font-size:16px; margin-left:5px; cursor:pointer;" id="wmExSpeakBtn">🔊</span>
+            <span id="wmExText">...</span>
+            <span class="mini-speaker" id="wmExSpeakBtn">🔊</span>
         </div>
         <div id="wmActionArea"></div>
         <button class="wm-btn secondary" onclick="closeModal()">關閉</button>
     </div>
 
+    <!-- API KEY MODAL -->
     <div class="modal-overlay" id="keyModal">
         <div class="modal-card">
             <h3>設定 Gemini API</h3>
@@ -328,73 +330,50 @@
     <audio id="mainAudio"></audio>
 
 <script>
-    /**
-     * --- INDEXEDDB HELPER ---
-     * Replacing localStorage to handle large Audio Blobs
-     */
+    /** --- INDEXEDDB HELPER --- */
     const dbName = 'TOEIC_Tutor_DB';
     const storeName = 'history';
-    const dbVersion = 1;
-
     const DB = {
-        open: () => {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(dbName, dbVersion);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(storeName)) {
-                        db.createObjectStore(storeName, { keyPath: 'id' });
-                    }
-                };
-                request.onsuccess = (e) => resolve(e.target.result);
-                request.onerror = (e) => reject(e.target.error);
-            });
-        },
-        add: async (item) => {
+        open: () => new Promise((res, rej) => {
+            const req = indexedDB.open(dbName, 1);
+            req.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains(storeName)) e.target.result.createObjectStore(storeName, { keyPath: 'id' }); };
+            req.onsuccess = e => res(e.target.result);
+            req.onerror = e => rej(e.target.error);
+        }),
+        add: async item => {
             const db = await DB.open();
-            return new Promise((resolve, reject) => {
+            return new Promise((res, rej) => {
                 const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                store.put(item);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                tx.objectStore(storeName).put(item);
+                tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
             });
         },
         getAll: async () => {
             const db = await DB.open();
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const store = tx.objectStore(storeName);
-                const request = store.getAll();
-                request.onsuccess = () => resolve(request.result.reverse()); // Newest first
-                request.onerror = () => reject(request.error);
+            return new Promise((res, rej) => {
+                const req = db.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+                req.onsuccess = () => res(req.result.reverse()); req.onerror = () => rej(req.error);
             });
         },
-        delete: async (id) => {
+        delete: async id => {
             const db = await DB.open();
-            return new Promise((resolve, reject) => {
+            return new Promise((res, rej) => {
                 const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                store.delete(id);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                tx.objectStore(storeName).delete(id);
+                tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
             });
         },
         clear: async () => {
             const db = await DB.open();
-            return new Promise((resolve, reject) => {
+            return new Promise((res, rej) => {
                 const tx = db.transaction(storeName, 'readwrite');
-                const store = tx.objectStore(storeName);
-                store.clear();
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                tx.objectStore(storeName).clear();
+                tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error);
             });
         }
     };
 
-    /**
-     * STATE MANAGEMENT
-     */
+    /** --- STATE & CONFIG --- */
     const state = {
         apiKey: localStorage.getItem('gemini_api_key') || '',
         targetScore: 700,
@@ -406,13 +385,10 @@
         showTranslation: false,
         blindMode: false
     };
-
     const TEXT_MODEL = "gemini-2.5-flash"; 
     const VOICE_NAMES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede"];
 
-    /**
-     * UI INITIALIZATION & VIEW ROUTING
-     */
+    /** --- UI ROUTING --- */
     const viewHome = document.getElementById('viewHome');
     const viewStudy = document.getElementById('viewStudy');
     const playerBar = document.getElementById('playerBar');
@@ -423,17 +399,15 @@
         playerBar.classList.remove('hidden');
         window.scrollTo(0,0);
     }
-
     function goHome() {
         viewStudy.classList.add('hidden');
         viewHome.classList.remove('hidden');
         playerBar.classList.add('hidden');
-        const audio = document.getElementById('mainAudio');
-        audio.pause();
+        document.getElementById('mainAudio').pause();
         refreshHistory();
     }
 
-    // Score Selector
+    // Init Logic
     const scores = [500, 600, 700, 800, 900];
     const scoreSelector = document.getElementById('scoreSelector');
     scores.forEach(score => {
@@ -448,76 +422,54 @@
         scoreSelector.appendChild(chip);
     });
 
-    // API Key Modal
     const keyModal = document.getElementById('keyModal');
-    const settingsBtn = document.getElementById('btnSettings');
     if (!state.apiKey) keyModal.classList.add('active');
-    settingsBtn.onclick = () => { document.getElementById('apiKeyInput').value = state.apiKey; keyModal.classList.add('active'); };
+    document.getElementById('btnSettings').onclick = () => { document.getElementById('apiKeyInput').value = state.apiKey; keyModal.classList.add('active'); };
     function saveApiKey() {
         const input = document.getElementById('apiKeyInput').value.trim();
-        if (input) {
-            state.apiKey = input;
-            localStorage.setItem('gemini_api_key', input);
-            keyModal.classList.remove('active');
-        } else alert('請輸入有效的 API Key');
+        if (input) { state.apiKey = input; localStorage.setItem('gemini_api_key', input); keyModal.classList.remove('active'); }
+        else alert('請輸入有效 Key');
     }
 
-    /**
-     * GENERATION LOGIC
-     */
+    /** --- API & GENERATION --- */
     const GENERATE_BTN = document.getElementById('btnGenerate');
-    
     GENERATE_BTN.onclick = async () => {
         if (!state.apiKey) return alert('請先設定 API Key');
-        
         GENERATE_BTN.disabled = true;
         GENERATE_BTN.innerHTML = '<div class="loader"></div> 生成中...';
 
         try {
             const contentData = await fetchGeminiText(state.targetScore);
-            
-            // Construct article
             if (contentData.segments) {
                 contentData.article = contentData.segments.map(s => s.en).join(' ');
                 contentData.translation = contentData.segments.map(s => s.zh).join('\n');
             }
-
             state.currentData = contentData;
             renderContent(contentData);
             
             const randomVoice = VOICE_NAMES[Math.floor(Math.random() * VOICE_NAMES.length)];
-            const audioArrayBuffer = await fetchGeminiTTS(contentData.article, randomVoice);
-            
-            // Convert ArrayBuffer to Blob for Storage and Playback
-            const audioBlob = pcmToWav(new Uint8Array(audioArrayBuffer), 24000);
-            
+            const audioBuffer = await fetchGeminiTTS(contentData.article, randomVoice);
+            const audioBlob = pcmToWav(new Uint8Array(audioBuffer), 24000);
             setupAudio(audioBlob);
             
-            // Save to IndexedDB with Score
             await DB.add({
                 id: Date.now(),
                 date: new Date().toLocaleDateString(),
                 title: contentData.segments ? contentData.segments[0].en.substring(0, 30) + '...' : 'New Lesson',
                 data: contentData,
-                score: state.targetScore, // Requirement 3: Save Score
-                audioBlob: audioBlob // Requirement 1: Save Audio Blob directly
+                score: state.targetScore,
+                audioBlob: audioBlob
             });
-
             goStudy();
-
         } catch (error) {
-            console.error(error);
-            alert('發生錯誤: ' + error.message);
+            console.error(error); alert('錯誤: ' + error.message);
         } finally {
-            GENERATE_BTN.disabled = false;
-            GENERATE_BTN.innerHTML = '<span>✨ 生成新課程</span>';
+            GENERATE_BTN.disabled = false; GENERATE_BTN.innerHTML = '<span>✨ 生成新課程</span>';
         }
     };
 
-    /**
-     * API FUNCTIONS
-     */
     async function fetchGeminiText(score) {
+        // Changed grammar to phrases
         const prompt = `
             You are a strict TOEIC tutor. Target Score: ${score}.
             Task: Generate a reading comprehension passage (150-200 words) about a random business or daily life scenario suitable for this level.
@@ -528,42 +480,42 @@
                     {"en": "Sentence 2 English", "zh": "Sentence 2 Traditional Chinese Translation"}
                 ],
                 "vocabulary": [
-                    {"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "Chinese definition", "ex": "English example sentence ONLY (No Chinese translation, No special symbols)"}
+                    {"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "Chinese definition", "ex": "English example sentence ONLY (No Chinese)"}
                 ],
-                "grammar": ["Point 1 (Explain in Traditional Chinese + English terms)"]
+                "phrases": [
+                    {"phrase": "look forward to", "meaning": "期待 (Traditional Chinese)", "desc": "Explanation usage note in Traditional Chinese", "ex": "English example sentence."}
+                ]
             }
             Return ONLY raw JSON. No markdown formatting.
         `;
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
         });
         const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
         return JSON.parse(data.candidates[0].content.parts[0].text);
     }
 
     async function fetchWordDetails(word) {
-        // Simple cache
-        const cacheKey = `word_${word.toLowerCase()}`;
-        const cached = localStorage.getItem(cacheKey);
-        if(cached) return JSON.parse(cached);
+        // Check cache first
+        const cache = JSON.parse(localStorage.getItem('toeic_word_cache') || '{}');
+        if (cache[word.toLowerCase()]) return cache[word.toLowerCase()];
 
-        const prompt = `Explain "${word}" for TOEIC. Output JSON: {"word":"${word}","pos":"pos","ipa":"ipa","def":"Traditional Chinese def","ex":"English example ONLY."}`;
+        const prompt = `Explain "${word}" for TOEIC. Output JSON: {"word":"${word}","pos":"pos","ipa":"ipa","def":"Traditional Chinese def","ex":"English example sentence ONLY."}`;
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
         });
         const data = await response.json();
         const result = JSON.parse(data.candidates[0].content.parts[0].text);
-        localStorage.setItem(cacheKey, JSON.stringify(result));
+        
+        // Save to cache
+        cache[word.toLowerCase()] = result;
+        localStorage.setItem('toeic_word_cache', JSON.stringify(cache));
         return result;
     }
 
     async function fetchGeminiTTS(text, voiceName) {
-        // Try Exp model first, fallback to Preview TTS
         const payload = {
             contents: [{ parts: [{ text: text }] }],
             generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } } },
@@ -574,36 +526,23 @@
         });
         const data = await response.json();
         if (data.error) return fetchGeminiTTSFallback(text, voiceName);
-        
-        // Convert Base64 to ArrayBuffer
-        const base64 = data.candidates[0].content.parts[0].inlineData.data;
-        const binaryString = atob(base64);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+        const bin = atob(data.candidates[0].content.parts[0].inlineData.data);
+        const len = bin.length; const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
         return bytes.buffer;
     }
 
     async function fetchGeminiTTSFallback(text, voiceName) {
-        const payload = {
-            contents: [{ parts: [{ text: text }] }],
-            generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } } }
-        };
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
+        const payload = { contents: [{ parts: [{ text: text }] }], generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName } } } } };
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${state.apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await response.json();
-        const base64 = data.candidates[0].content.parts[0].inlineData.data;
-        const binaryString = atob(base64);
-        const len = binaryString.length;
-        const bytes = new Uint8Array(len);
-        for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
+        const bin = atob(data.candidates[0].content.parts[0].inlineData.data);
+        const len = bin.length; const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
         return bytes.buffer;
     }
 
-    /**
-     * RENDERING
-     */
+    /** --- RENDERING --- */
     function renderContent(data) {
         const container = document.getElementById('articleContainer');
         container.innerHTML = '';
@@ -611,22 +550,17 @@
 
         const segments = data.segments || [{ en: data.article, zh: data.translation }];
         let totalWeighted = 0;
-        const segWeights = segments.map(s => {
-            const w = s.en.split(/(\s+)/).reduce((acc, t) => acc + tokenWeight(t), 0);
-            totalWeighted += w;
-            return w;
-        });
+        const segWeights = segments.map(s => s.en.split(/(\s+)/).reduce((acc, t) => acc + tokenWeight(t), 0));
+        segWeights.forEach(w => totalWeighted += w);
 
         let globalAcc = 0;
 
         segments.forEach((seg, sIdx) => {
             const row = document.createElement('div');
-            row.className = 'segment-row';
+            row.className = `segment-row ${state.blindMode ? 'blind-mode' : ''}`;
             
-            // English Line
             const enDiv = document.createElement('div');
             enDiv.className = 'segment-en';
-            if (state.blindMode) row.classList.add('blind-mode');
 
             const sentStartPct = globalAcc / totalWeighted;
             const sentEndPct = (globalAcc + segWeights[sIdx]) / totalWeighted;
@@ -638,263 +572,243 @@
             let accTW = 0;
 
             tokens.forEach((frag, tIdx) => {
-                if (!/[a-zA-Z0-9]/.test(frag)) {
-                    enDiv.appendChild(document.createTextNode(frag));
-                    accTW += tWeights[tIdx];
-                    return;
-                }
+                if (!/[a-zA-Z0-9]/.test(frag)) { enDiv.appendChild(document.createTextNode(frag)); accTW += tWeights[tIdx]; return; }
                 const span = document.createElement('span');
                 span.innerText = frag;
                 span.className = 'word-interactive';
-                const clean = frag.replace(/[^a-zA-Z0-9']/g, '');
-                addLongPressListener(span, clean);
+                addLongPressListener(span, frag.replace(/[^a-zA-Z0-9']/g, ''));
                 enDiv.appendChild(span);
 
-                const startL = accTW / totalTW;
-                const endL = (accTW + tWeights[tIdx]) / totalTW;
-                
-                state.words.push({
-                    element: span,
-                    startPct: sentStartPct + (startL * sentDur),
-                    endPct: sentStartPct + (endL * sentDur)
-                });
+                const startL = accTW / totalTW; const endL = (accTW + tWeights[tIdx]) / totalTW;
+                state.words.push({ element: span, startPct: sentStartPct + (startL * sentDur), endPct: sentStartPct + (endL * sentDur) });
                 accTW += tWeights[tIdx];
             });
 
             globalAcc += segWeights[sIdx];
-
             const zhDiv = document.createElement('div');
-            zhDiv.className = 'segment-zh';
-            if (!state.showTranslation) zhDiv.classList.add('hidden');
+            zhDiv.className = `segment-zh ${state.showTranslation ? '' : 'hidden'}`;
             zhDiv.innerText = seg.zh;
-
-            row.appendChild(enDiv);
-            row.appendChild(zhDiv);
-            container.appendChild(row);
+            row.appendChild(enDiv); row.appendChild(zhDiv); container.appendChild(row);
         });
 
         // Vocab
         const vList = document.getElementById('vocabList');
         vList.innerHTML = '';
         data.vocabulary.slice(0,8).forEach(v => {
-            const safeW = v.word.replace(/'/g, "\\'");
-            const safeE = v.ex.replace(/'/g, "\\'");
             vList.innerHTML += `
             <div class="vocab-card">
                 <div class="vocab-header">
-                    <div><span class="vocab-word">${v.word}</span> <span class="mini-speaker" onclick="speakText('${safeW}')">🔊</span></div>
+                    <div><span class="vocab-word">${v.word}</span> <span class="mini-speaker" onclick="speakText('${v.word.replace(/'/g, "\\'")}')">🔊</span></div>
                     <div><span class="vocab-pos">${v.pos}</span> <span class="vocab-ipa">${v.ipa}</span></div>
                 </div>
                 <div class="vocab-def">${v.def}</div>
-                <div class="vocab-ex">"${v.ex}" <span class="mini-speaker" onclick="speakText('${safeE}')">🔊</span></div>
+                <div class="vocab-ex">"${v.ex}" <span class="mini-speaker" onclick="speakText('${v.ex.replace(/'/g, "\\'")}')">🔊</span></div>
             </div>`;
         });
 
-        const gList = document.getElementById('grammarList');
-        gList.innerHTML = '';
-        data.grammar.forEach(g => gList.innerHTML += `<li class="grammar-item"><span class="grammar-bullet">•</span> ${g}</li>`);
+        // Phrases
+        const pList = document.getElementById('phraseList');
+        pList.innerHTML = '';
+        if (data.phrases) {
+            data.phrases.forEach(p => {
+                pList.innerHTML += `
+                <div class="phrase-card">
+                    <div class="phrase-title">${p.phrase} <span class="mini-speaker" onclick="speakText('${p.phrase.replace(/'/g, "\\'")}')">🔊</span></div>
+                    <div class="phrase-meaning">${p.meaning}</div>
+                    <div class="phrase-desc">${p.desc}</div>
+                    <div class="phrase-ex">"${p.ex}" <span class="mini-speaker" onclick="speakText('${p.ex.replace(/'/g, "\\'")}')">🔊</span></div>
+                </div>`;
+            });
+        }
     }
 
-    /**
-     * TOGGLES (Requirements 2)
-     */
+    /** --- TOGGLES --- */
     function toggleTranslation() {
         state.showTranslation = !state.showTranslation;
-        const btn = document.getElementById('btnToggleTrans');
-        btn.classList.toggle('active', state.showTranslation);
-        document.querySelectorAll('.segment-zh').forEach(el => {
-            state.showTranslation ? el.classList.remove('hidden') : el.classList.add('hidden');
-        });
+        document.getElementById('btnToggleTrans').classList.toggle('active', state.showTranslation);
+        document.querySelectorAll('.segment-zh').forEach(el => el.classList.toggle('hidden', !state.showTranslation));
     }
-
     function toggleBlindMode() {
         state.blindMode = !state.blindMode;
-        const btn = document.getElementById('btnToggleBlind');
-        btn.classList.toggle('active', state.blindMode);
-        document.querySelectorAll('.segment-row').forEach(row => {
-            state.blindMode ? row.classList.add('blind-mode') : row.classList.remove('blind-mode');
-        });
+        document.getElementById('btnToggleBlind').classList.toggle('active', state.blindMode);
+        document.querySelectorAll('.segment-row').forEach(el => el.classList.toggle('blind-mode', state.blindMode));
     }
 
-    /**
-     * HISTORY & DB
-     */
+    /** --- HISTORY --- */
     async function refreshHistory() {
         const list = document.getElementById('historyList');
         list.innerHTML = '';
         try {
             const items = await DB.getAll();
-            if (items.length === 0) {
-                list.innerHTML = '<div style="text-align:center; color:#ccc;">尚無紀錄</div>';
-                return;
-            }
+            if (items.length === 0) { list.innerHTML = '<div style="text-align:center; color:#ccc;">尚無紀錄</div>'; return; }
             items.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'history-item';
-                // Requirement 3: Show Score
-                const scoreTag = item.score ? `<span class="h-tag">${item.score}</span>` : '';
                 div.innerHTML = `
                     <div class="h-info">
-                        <div class="h-title">${scoreTag}${item.title}</div>
+                        <div class="h-title"><span class="h-tag">${item.score||'700'}</span>${item.title}</div>
                         <div class="h-date">${item.date} ${item.audioBlob ? '🔊' : ''}</div>
                     </div>
-                    <button class="h-delete">×</button>
-                `;
-                
-                div.onclick = (e) => {
-                    if (e.target.classList.contains('h-delete')) {
-                        e.stopPropagation();
-                        if(confirm('刪除此紀錄？')) {
-                            DB.delete(item.id).then(refreshHistory);
-                        }
-                        return;
-                    }
-                    loadHistoryItem(item);
+                    <button class="h-delete">×</button>`;
+                div.onclick = e => {
+                    if (e.target.classList.contains('h-delete')) { e.stopPropagation(); if(confirm('刪除？')) DB.delete(item.id).then(refreshHistory); return; }
+                    state.currentData = item.data; state.targetScore = item.score || 700;
+                    state.showTranslation = false; document.getElementById('btnToggleTrans').classList.remove('active');
+                    state.blindMode = false; document.getElementById('btnToggleBlind').classList.remove('active');
+                    renderContent(item.data);
+                    if (item.audioBlob) setupAudio(item.audioBlob);
+                    goStudy();
                 };
                 list.appendChild(div);
             });
-        } catch (e) {
-            console.error(e);
-            list.innerHTML = '讀取紀錄失敗';
-        }
+        } catch (e) { console.error(e); }
     }
+    async function clearHistory() { if(confirm('清除全部？')) { await DB.clear(); refreshHistory(); } }
 
-    async function clearHistory() {
-        if(confirm('確定清除全部？')) {
-            await DB.clear();
-            refreshHistory();
-        }
-    }
-
-    function loadHistoryItem(item) {
-        state.currentData = item.data;
-        state.targetScore = item.score || 700;
-        // Reset toggles
-        state.showTranslation = false; document.getElementById('btnToggleTrans').classList.remove('active');
-        state.blindMode = false; document.getElementById('btnToggleBlind').classList.remove('active');
-        
-        renderContent(item.data);
-        if (item.audioBlob) {
-            setupAudio(item.audioBlob);
-        } else {
-            alert('此舊紀錄無音檔');
-        }
-        goStudy();
-    }
-
-    // Audio & Sync (Same Logic, using Blob)
+    /** --- AUDIO --- */
     const audioEl = document.getElementById('mainAudio');
     const progressBar = document.getElementById('progressBar');
-    
     function setupAudio(blob) {
         if (state.audioBlobUrl) URL.revokeObjectURL(state.audioBlobUrl);
         state.audioBlobUrl = URL.createObjectURL(blob);
         audioEl.src = state.audioBlobUrl;
         audioEl.playbackRate = state.playbackSpeed;
     }
-
-    // Sync Logic
     audioEl.ontimeupdate = () => {
         if (!audioEl.duration) return;
         const pct = audioEl.currentTime / audioEl.duration;
         progressBar.style.width = `${pct*100}%`;
-        
         let idx = -1;
-        for (let i=0; i<state.words.length; i++) {
-            if (pct >= state.words[i].startPct && pct < state.words[i].endPct) { idx = i; break; }
-        }
-        
+        for (let i=0; i<state.words.length; i++) { if (pct >= state.words[i].startPct && pct < state.words[i].endPct) { idx = i; break; } }
         if (idx !== state.activeWordIndex) {
-            if (state.activeWordIndex >= 0 && state.words[state.activeWordIndex]) {
-                state.words[state.activeWordIndex].element.classList.remove('active');
-            }
-            if (idx >= 0) {
-                state.words[idx].element.classList.add('active');
-                // Optional: Auto-reveal blurred text when active?
-                // For hard training, we keep it blurred.
-            }
+            if (state.activeWordIndex >= 0 && state.words[state.activeWordIndex]) state.words[state.activeWordIndex].element.classList.remove('active');
+            if (idx >= 0) state.words[idx].element.classList.add('active');
             state.activeWordIndex = idx;
         }
     };
-
-    // Controls
+    audioEl.onended = () => {
+        document.getElementById('btnPlayPause').innerText='▶'; progressBar.style.width='0%';
+        if(state.activeWordIndex >= 0 && state.words[state.activeWordIndex]) state.words[state.activeWordIndex].element.classList.remove('active');
+        state.activeWordIndex = -1;
+    };
     document.getElementById('btnPlayPause').onclick = () => audioEl.paused ? (audioEl.play(), document.getElementById('btnPlayPause').innerText='⏸') : (audioEl.pause(), document.getElementById('btnPlayPause').innerText='▶');
-    document.getElementById('progressContainer').onclick = (e) => {
-        const rect = e.target.getBoundingClientRect();
-        const pos = (e.clientX - rect.left) / rect.width;
-        if (audioEl.duration) audioEl.currentTime = pos * audioEl.duration;
+    document.getElementById('progressContainer').onclick = e => {
+        if (audioEl.duration) {
+            audioEl.currentTime = (e.clientX - e.target.getBoundingClientRect().left) / e.target.getBoundingClientRect().width * audioEl.duration;
+            audioEl.ontimeupdate && audioEl.ontimeupdate();
+        }
     };
     document.getElementById('btnSpeed').onclick = () => {
         const speeds = [1.0, 0.75, 0.5];
-        let idx = speeds.indexOf(state.playbackSpeed);
-        state.playbackSpeed = speeds[(idx+1)%3];
+        state.playbackSpeed = speeds[(speeds.indexOf(state.playbackSpeed)+1)%3];
         audioEl.playbackRate = state.playbackSpeed;
         document.getElementById('btnSpeed').innerText = state.playbackSpeed + 'x';
     };
 
-    // Interaction Helpers (Weighting, PCM to WAV)
-    function tokenWeight(token) {
-        if (!token) return 0;
-        let p = 0;
-        if (/[,:;]/.test(token)) p += 1.2;
-        if (/[.!?]/.test(token)) p += 2.4;
-        const w = token.replace(/[^a-zA-Z0-9']/g, '');
-        let weight = Math.max(1.6, w.length);
-        if (w.match(/\d/)) weight += 2; // digits are longer
-        return weight + p;
+    /** --- HELPERS --- */
+    function pcmToWav(pcm, rate) {
+        const b = new ArrayBuffer(44 + pcm.length), v = new DataView(b);
+        const wS = (o,s) => { for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+        wS(0,'RIFF'); v.setUint32(4, 36+pcm.length, true); wS(8,'WAVE'); wS(12,'fmt ');
+        v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+        v.setUint32(24,rate,true); v.setUint32(28,rate*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+        wS(36,'data'); v.setUint32(40,pcm.length,true); new Uint8Array(b,44).set(pcm);
+        return new Blob([b], {type:'audio/wav'});
     }
-
-    function pcmToWav(pcmData, sampleRate) {
-        const buffer = new ArrayBuffer(44 + pcmData.length);
-        const view = new DataView(buffer);
-        const writeString = (v, o, s) => { for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
-        writeString(view, 0, 'RIFF'); view.setUint32(4, 36+pcmData.length, true); writeString(view, 8, 'WAVE');
-        writeString(view, 12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-        view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate*2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-        writeString(view, 36, 'data'); view.setUint32(40, pcmData.length, true);
-        new Uint8Array(buffer, 44).set(pcmData);
-        return new Blob([buffer], {type: 'audio/wav'});
+    function tokenWeight(t) {
+        if (!t) return 0;
+        let w = Math.max(1.6, t.replace(/[^a-zA-Z0-9']/g,'').length);
+        if (t.match(/\d/)) w += 2;
+        if (/[,:;]/.test(t)) w += 1.2;
+        if (/[.!?]/.test(t)) w += 2.4;
+        return w;
     }
+    function speakText(t) { const u = new SpeechSynthesisUtterance(t); u.lang='en-US'; window.speechSynthesis.speak(u); }
 
-    function speakText(text) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'en-US'; window.speechSynthesis.speak(u);
-    }
-
-    // Modal
-    function addLongPressListener(el, text) {
+    /** --- MODAL INTERACTION --- */
+    function addLongPressListener(el, word) {
         let timer;
-        const start = (e) => { if(e.type==='click'&&e.button!==0)return; timer = setTimeout(()=>showModal(text), 600); };
-        const cancel = () => clearTimeout(timer);
+        // Visual Feedback Logic
+        const start = e => {
+            if(e.type==='click'&&e.button!==0)return;
+            el.classList.add('pressing');
+            timer = setTimeout(() => {
+                el.classList.remove('pressing');
+                showWordModal(word);
+            }, 600);
+        };
+        const end = () => { clearTimeout(timer); el.classList.remove('pressing'); };
+        
         el.addEventListener('touchstart', start, {passive:true});
-        el.addEventListener('touchend', cancel);
-        el.addEventListener('touchmove', cancel);
+        el.addEventListener('touchend', end);
+        el.addEventListener('touchmove', end);
         el.addEventListener('mousedown', start);
-        el.addEventListener('mouseup', cancel);
-        el.addEventListener('mouseleave', cancel);
-        el.oncontextmenu = (e) => { e.preventDefault(); return false; };
+        el.addEventListener('mouseup', end);
+        el.addEventListener('mouseleave', end);
+        el.oncontextmenu = e => { e.preventDefault(); return false; };
     }
-    
-    async function showModal(word) {
+
+    function showWordModal(word) {
         const modal = document.getElementById('wordModal');
+        const actionArea = document.getElementById('wmActionArea');
         document.getElementById('wmWord').innerText = word;
         document.getElementById('btnWordAudio').onclick = () => speakText(word);
         
-        let data = await fetchWordDetails(word); // Check cache inside
-        document.getElementById('wmPos').innerText = data.pos;
-        document.getElementById('wmIpa').innerText = data.ipa;
-        document.getElementById('wmDef').innerText = data.def;
-        document.getElementById('wmExText').innerText = data.ex;
-        document.getElementById('wmExSpeakBtn').onclick = () => speakText(data.ex);
+        // 1. Check if word exists in current generated data (Vocabulary List)
+        let vocabItem = state.currentData.vocabulary.find(v => v.word.toLowerCase() === word.toLowerCase());
         
+        // 2. If not, check Cache
+        if (!vocabItem) {
+            const cache = JSON.parse(localStorage.getItem('toeic_word_cache') || '{}');
+            vocabItem = cache[word.toLowerCase()];
+        }
+
+        // 3. Render
+        if (vocabItem) {
+            // Data Exists -> Show Details
+            document.getElementById('wmPos').innerText = vocabItem.pos;
+            document.getElementById('wmIpa').innerText = vocabItem.ipa;
+            document.getElementById('wmDef').innerText = vocabItem.def;
+            document.getElementById('wmExText').innerText = vocabItem.ex;
+            document.getElementById('wmExSpeakBtn').onclick = () => speakText(vocabItem.ex);
+            document.getElementById('wmEx').classList.remove('hidden');
+            actionArea.innerHTML = ''; 
+        } else {
+            // Data MISSING -> Show Generate Button (No loading, no waiting)
+            document.getElementById('wmPos').innerText = '';
+            document.getElementById('wmIpa').innerText = '';
+            document.getElementById('wmDef').innerText = '尚無詳細資料';
+            document.getElementById('wmEx').classList.add('hidden');
+            
+            actionArea.innerHTML = '';
+            const genBtn = document.createElement('button');
+            genBtn.className = 'wm-btn';
+            genBtn.style.background = 'var(--accent)';
+            genBtn.innerText = '✨ AI 解析此單字';
+            genBtn.onclick = async () => {
+                genBtn.disabled = true; genBtn.innerText = '生成中...';
+                try {
+                    const info = await fetchWordDetails(word);
+                    // Update Modal with new data
+                    document.getElementById('wmPos').innerText = info.pos;
+                    document.getElementById('wmIpa').innerText = info.ipa;
+                    document.getElementById('wmDef').innerText = info.def;
+                    document.getElementById('wmExText').innerText = info.ex;
+                    document.getElementById('wmExSpeakBtn').onclick = () => speakText(info.ex);
+                    document.getElementById('wmEx').classList.remove('hidden');
+                    genBtn.remove();
+                } catch(e) {
+                    genBtn.innerText = '生成失敗，請重試'; genBtn.disabled = false; alert(e.message);
+                }
+            };
+            actionArea.appendChild(genBtn);
+        }
         modal.classList.add('active');
     }
     function closeModal() { document.getElementById('wordModal').classList.remove('active'); }
 
-    // Init
+    // Start
     refreshHistory();
-
 </script>
 </body>
 </html>
