@@ -425,6 +425,14 @@
         }
         .restore-card .restore-btns .btn-cancel { background: #f0f0f0; color: #333; }
         .restore-card .restore-btns .btn-restore { background: var(--primary); color: white; }
+        .sync-choice-btns { display: flex; flex-direction: column; gap: 8px; }
+        .sync-choice-btns button {
+            width: 100%; padding: 13px; border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+        }
+        .sync-choice-btns .btn-use-cloud { background: var(--primary); color: white; }
+        .sync-choice-btns .btn-use-local { background: var(--success); color: white; }
+        .sync-choice-btns .btn-skip { background: #f0f0f0; color: #333; }
     </style>
 </head>
 <body>
@@ -738,12 +746,8 @@
             });
             if (!ok) return false;
             try {
-                const data = await this.download();
-                if (data && data.exportedAt) {
-                    const date = new Date(data.exportedAt).toLocaleString();
-                    this._showRestorePrompt(data, date, null);
-                }
-            } catch (e) { console.log('No existing backup found or check failed:', e); }
+                await this._compareAndPromptSync();
+            } catch (e) { console.log('Sync check failed:', e); }
             return true;
         },
 
@@ -933,6 +937,71 @@
                 alert('還原失敗: ' + e.message);
                 btn.textContent = '從雲端還原'; btn.disabled = false;
             }
+        },
+
+        async _compareAndPromptSync() {
+            const cloudData = await this.download();
+            const localHistory = await DB.getHistory();
+            const localWords = await DB.getSavedWords();
+
+            if (!cloudData || !cloudData.exportedAt) {
+                const json = await this.exportData();
+                await this.upload(json);
+                return;
+            }
+
+            const cloudHistoryCount = (cloudData.history || []).length;
+            const cloudWordsCount = (cloudData.savedWords || []).length;
+            const isSame = localHistory.length === cloudHistoryCount && localWords.length === cloudWordsCount;
+
+            if (isSame) return;
+
+            this._showSyncChoicePrompt(cloudData, {
+                localHistoryCount: localHistory.length,
+                localWordsCount: localWords.length,
+                cloudHistoryCount,
+                cloudWordsCount,
+                cloudDate: new Date(cloudData.exportedAt).toLocaleString(),
+            });
+        },
+
+        _showSyncChoicePrompt(cloudData, info) {
+            const overlay = document.createElement('div');
+            overlay.className = 'restore-overlay';
+            overlay.innerHTML = `<div class="restore-card">
+                <h3>本地與雲端資料不同</h3>
+                <p style="text-align:left; line-height:1.8; margin-bottom:14px;">
+                    <b>本地：</b>${info.localHistoryCount} 筆紀錄、${info.localWordsCount} 個單字<br>
+                    <b>雲端：</b>${info.cloudHistoryCount} 筆紀錄、${info.cloudWordsCount} 個單字<br>
+                    <span style="font-size:11px; color:#999;">雲端備份時間：${info.cloudDate}</span>
+                </p>
+                <div class="sync-choice-btns">
+                    <button class="btn-use-cloud">以雲端為主（覆蓋本地）</button>
+                    <button class="btn-use-local">以本地為主（覆蓋雲端）</button>
+                    <button class="btn-skip">暫時跳過</button>
+                </div>
+            </div>`;
+            overlay.querySelector('.btn-use-cloud').onclick = async () => {
+                const btn = overlay.querySelector('.btn-use-cloud');
+                btn.textContent = '同步中...'; btn.disabled = true;
+                try {
+                    await this.importData(cloudData);
+                    overlay.remove();
+                    renderHistory(); await loadLastSession();
+                    if (typeof renderVocabTab === 'function') renderVocabTab();
+                } catch (e) { alert('同步失敗: ' + e.message); overlay.remove(); }
+            };
+            overlay.querySelector('.btn-use-local').onclick = async () => {
+                const btn = overlay.querySelector('.btn-use-local');
+                btn.textContent = '同步中...'; btn.disabled = true;
+                try {
+                    const json = await this.exportData();
+                    await this.upload(json);
+                    overlay.remove();
+                } catch (e) { alert('同步失敗: ' + e.message); overlay.remove(); }
+            };
+            overlay.querySelector('.btn-skip').onclick = () => overlay.remove();
+            document.body.appendChild(overlay);
         },
 
         _showRestorePrompt(data, dateStr, triggerBtn) {
