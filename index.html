@@ -548,6 +548,7 @@
             </a>
             <div class="input-group"><input type="password" id="apiKeyInput" placeholder="Paste API Key here..."></div>
             <button class="generate-btn" style="margin: 10px 0 0;" onclick="saveApiKey()">儲存</button>
+            <button class="wm-btn secondary" id="btnCloseKeyModal" style="margin-top: 8px; display: none;" onclick="document.getElementById('keyModal').classList.remove('active')">關閉</button>
             <p style="font-size: 11px; color: #999; margin-top: 10px;">Key 僅儲存於本地裝置 (IndexedDB)</p>
 
             <div class="cloud-section">
@@ -1072,7 +1073,7 @@
     });
 
     const keyModal = document.getElementById('keyModal');
-    document.getElementById('btnSettings').onclick = () => { document.getElementById('apiKeyInput').value = state.apiKey; DriveSync.updateUI(); keyModal.classList.add('active'); };
+    document.getElementById('btnSettings').onclick = () => { document.getElementById('apiKeyInput').value = state.apiKey; document.getElementById('btnCloseKeyModal').style.display = state.apiKey ? 'flex' : 'none'; DriveSync.updateUI(); keyModal.classList.add('active'); };
     async function saveApiKey() { const v = document.getElementById('apiKeyInput').value.trim(); if (v) { state.apiKey = v; await DB.setSetting('gemini_api_key', v); keyModal.classList.remove('active'); } else { alert('請輸入有效的 API Key'); } }
 
     /* Gemini API */
@@ -1317,7 +1318,7 @@
     playBtn.onclick = () => { state.playUntilPct = null; if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; } else { audioEl.pause(); playBtn.innerHTML = ICONS.play; } };
     progressContainer.onclick = (e) => { state.playUntilPct = null; const r = progressContainer.getBoundingClientRect(); const p = (e.clientX - r.left) / r.width; if (audioEl.duration) { audioEl.currentTime = p * audioEl.duration; } };
     state.activeSegmentIndex = -1;
-    audioEl.ontimeupdate = () => { const d = audioEl.duration; if (!d) return; const p = audioEl.currentTime / d; progressBar.style.width = `${p*100}%`; if (state.playUntilPct !== null && p >= state.playUntilPct) { audioEl.pause(); playBtn.innerHTML = ICONS.play; state.playUntilPct = null; return; } let idx = -1; for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } } if (idx !== state.activeSegmentIndex) { if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active'); state.activeSegmentIndex = idx; } };
+    audioEl.ontimeupdate = () => { const d = audioEl.duration; if (!d) return; const p = audioEl.currentTime / d; progressBar.style.width = `${p*100}%`; let idx = -1; for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } } if (idx !== state.activeSegmentIndex) { if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active'); state.activeSegmentIndex = idx; } if (state.playUntilPct !== null && p >= state.playUntilPct) { audioEl.pause(); playBtn.innerHTML = ICONS.play; state.playUntilPct = null; } };
     audioEl.onended = () => { playBtn.innerHTML = ICONS.play; progressBar.style.width = '0%'; if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); state.activeSegmentIndex = -1; };
 
     /* Long Press */
