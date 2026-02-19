@@ -2,6 +2,18 @@
 
 > 零安裝、零月費、AI 驅動的多益學習神器。打開瀏覽器就能練，忙碌的你也能高效備考。
 
+## 👉 立即使用
+
+**[https://brucefay1115.github.io/toeic-learning](https://brucefay1115.github.io/toeic-learning)**
+
+不用下載、不用安裝，點開連結就能開始學習！
+
+> 💡 **建議第一次使用時，將網頁加入手機主畫面，體驗如同原生 App：**
+> - **iPhone (Safari)**：點底部「分享」按鈕 → 選擇「加入主畫面」
+> - **Android (Chrome)**：點右上角「⋮」選單 → 選擇「加入主畫面」
+>
+> 加入後會以全螢幕模式開啟，使用體驗跟一般 App 完全一樣！
+
 ---
 
 ## 為什麼選擇 TOEIC AI Tutor？
@@ -59,11 +71,10 @@
 
 ## 快速開始
 
-### 方法一：直接開啟（推薦）
-把 `index.html` 部署到任何靜態空間（GitHub Pages、Vercel、Netlify⋯⋯），或直接在本地用瀏覽器開啟即可使用。**不需要安裝任何東西。**
-
-### 方法二：加到手機桌面
-在手機瀏覽器中開啟後，點選「加入主畫面」，就像原生 App 一樣使用，支援全螢幕體驗。
+1. 打開 **[https://brucefay1115.github.io/toeic-learning](https://brucefay1115.github.io/toeic-learning)**
+2. 將網頁加入手機主畫面，享受全螢幕 App 體驗
+3. 設定免費的 Gemini API Key
+4. 開始學習！
 
 ---
 

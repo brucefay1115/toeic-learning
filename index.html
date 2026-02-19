@@ -684,6 +684,14 @@
             });
         },
         async getHistory() { if (!this.db) await this.init(); return new Promise((r, j) => { const req = this.db.transaction('history','readonly').objectStore('history').getAll(); req.onsuccess = () => r(req.result.sort((a,b) => b.id - a.id)); req.onerror = () => j(req.error); }); },
+        async getLatestHistory() {
+            if (!this.db) await this.init();
+            return new Promise((r, j) => {
+                const req = this.db.transaction('history','readonly').objectStore('history').openCursor(null, 'prev');
+                req.onsuccess = () => r(req.result ? req.result.value : null);
+                req.onerror = () => j(req.error);
+            });
+        },
         async deleteHistory(id) { if (!this.db) await this.init(); return new Promise((r, j) => { const tx = this.db.transaction('history','readwrite'); tx.objectStore('history').delete(id); tx.oncomplete = () => r(); tx.onerror = () => j(tx.error); }); },
         async clearHistory() { if (!this.db) await this.init(); return new Promise((r, j) => { const tx = this.db.transaction('history','readwrite'); tx.objectStore('history').clear(); tx.oncomplete = () => r(); tx.onerror = () => j(tx.error); }); },
         async getWord(word) { if (!this.db) await this.init(); return new Promise((r, j) => { const req = this.db.transaction('wordCache','readonly').objectStore('wordCache').get(word.toLowerCase()); req.onsuccess = () => r(req.result ? req.result.data : null); req.onerror = () => j(req.error); }); },
@@ -727,6 +735,9 @@
                         return;
                     }
                     this.accessToken = resp.access_token;
+                    const expiresAt = Date.now() + (resp.expires_in || 3600) * 1000;
+                    DB.setSetting('gis_access_token', resp.access_token);
+                    DB.setSetting('gis_token_expires_at', expiresAt);
                     this._fetchUserInfo();
                     this.updateUI();
                     if (this._pendingLoginResolve) this._pendingLoginResolve(true);
@@ -752,6 +763,15 @@
         },
 
         async silentLogin() {
+            try {
+                const cached = await DB.getSetting('gis_access_token');
+                const expiresAt = await DB.getSetting('gis_token_expires_at');
+                if (cached && expiresAt && Date.now() < expiresAt) {
+                    this.accessToken = cached;
+                    this.updateUI();
+                    return true;
+                }
+            } catch (e) { /* ignore cache read errors */ }
             if (!this.tokenClient) {
                 this.init();
                 if (!this.tokenClient) return false;
@@ -771,6 +791,8 @@
             await DB.setSetting('cloud_sync_enabled', false);
             await DB.setSetting('cloud_user_email', null);
             await DB.setSetting('cloud_user_name', null);
+            await DB.setSetting('gis_access_token', null);
+            await DB.setSetting('gis_token_expires_at', null);
             this.updateUI();
         },
 
@@ -795,6 +817,8 @@
             const resp = await fetch(url, opts);
             if (resp.status === 401) {
                 this.accessToken = null;
+                DB.setSetting('gis_access_token', null);
+                DB.setSetting('gis_token_expires_at', null);
                 this.updateUI();
                 throw new Error('Token expired');
             }
@@ -1387,7 +1411,22 @@
     playBtn.onclick = () => { state.playUntilPct = null; if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; } else { audioEl.pause(); playBtn.innerHTML = ICONS.play; } };
     progressContainer.onclick = (e) => { state.playUntilPct = null; const r = progressContainer.getBoundingClientRect(); const p = (e.clientX - r.left) / r.width; if (audioEl.duration) { audioEl.currentTime = p * audioEl.duration; } };
     state.activeSegmentIndex = -1;
-    audioEl.ontimeupdate = () => { const d = audioEl.duration; if (!d) return; const p = audioEl.currentTime / d; progressBar.style.width = `${p*100}%`; let idx = -1; for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } } if (idx !== state.activeSegmentIndex) { if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active'); state.activeSegmentIndex = idx; } if (state.playUntilPct !== null && p >= state.playUntilPct) { audioEl.pause(); playBtn.innerHTML = ICONS.play; state.playUntilPct = null; } };
+    audioEl.ontimeupdate = () => {
+        const d = audioEl.duration; if (!d) return;
+        const p = audioEl.currentTime / d;
+        progressBar.style.width = `${p*100}%`;
+        if (state.playUntilPct !== null && p >= state.playUntilPct) {
+            audioEl.pause(); playBtn.innerHTML = ICONS.play; state.playUntilPct = null;
+            return;
+        }
+        let idx = -1;
+        for (let i = 0; i < state.segmentMetadata.length; i++) { const s = state.segmentMetadata[i]; if (p >= s.startPct && p < s.endPct) { idx = i; break; } }
+        if (idx !== state.activeSegmentIndex) {
+            if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
+            if (idx >= 0 && state.segmentMetadata[idx]) state.segmentMetadata[idx].element.classList.add('active');
+            state.activeSegmentIndex = idx;
+        }
+    };
     audioEl.onended = () => { playBtn.innerHTML = ICONS.play; progressBar.style.width = '0%'; if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active'); state.activeSegmentIndex = -1; };
 
     /* Long Press */
@@ -1620,7 +1659,7 @@
     }
     async function deleteHistoryItem(id) { await DB.deleteHistory(id); renderHistory(); }
     async function clearHistory() { if (confirm('確定清除全部歷史紀錄？')) { await DB.clearHistory(); renderHistory(); } }
-    async function loadLastSession() { try { const h = await DB.getHistory(); if (h && h.length > 0) loadSession(h[0]); } catch (e) { console.log("No history to load."); } }
+    async function loadLastSession() { try { const latest = await DB.getLatestHistory(); if (latest) loadSession(latest); } catch (e) { console.log("No history to load."); } }
 
     /* App Init */
     (async function initApp() {
