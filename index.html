@@ -20,6 +20,8 @@
             --text-sub: #8E8E93;
             --highlight: #FFD60A;
             --highlight-text: #000000;
+            --success: #34C759;
+            --danger: #FF3B30;
             --radius: 20px;
             --shadow: 0 4px 20px rgba(0,0,0,0.06);
             --safe-area-bottom: env(safe-area-inset-bottom);
@@ -60,10 +62,18 @@
         .settings-btn {
             background: none;
             border: none;
-            font-size: 24px;
+            font-size: 22px;
             cursor: pointer;
-            color: var(--text-main);
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            transition: background 0.2s;
         }
+        .settings-btn:active { background: rgba(0,0,0,0.05); }
 
         /* Bottom Tab Bar */
         .tab-bar {
@@ -98,7 +108,7 @@
             gap: 2px;
             transition: color 0.2s;
         }
-        .tab-btn .tab-icon { font-size: 22px; }
+        .tab-btn .tab-icon { font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; }
         .tab-btn .tab-label { font-weight: 500; }
         .tab-btn.active { color: var(--primary); }
 
@@ -124,7 +134,9 @@
         }
 
         .api-guide-link {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             margin-bottom: 15px;
             color: var(--primary);
             text-decoration: none;
@@ -195,7 +207,7 @@
             padding: 60px 20px;
             color: var(--text-sub);
         }
-        .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; display: flex; align-items: center; justify-content: center; }
         .empty-state p { font-size: 15px; margin: 8px 0; }
         .empty-state .cta-btn {
             display: inline-block;
@@ -387,7 +399,7 @@
             display: inline-flex; align-items: center; justify-content: center;
             width: 28px; height: 28px; border-radius: 50%; background: #f0f0f0;
             border: none; cursor: pointer; font-size: 14px; margin-left: 8px;
-            vertical-align: middle; transition: background 0.2s;
+            vertical-align: middle; transition: background 0.2s; color: var(--text-sub);
         }
         .mini-speaker:active { background: #d0d0d0; }
 
@@ -414,6 +426,8 @@
             font-weight: 700;
             color: var(--primary);
             margin-bottom: 6px;
+            display: flex;
+            align-items: center;
         }
         .phrase-meaning {
             font-size: 15px;
@@ -432,6 +446,8 @@
             color: #555;
             padding-left: 10px;
             border-left: 2px solid var(--primary-light);
+            display: flex;
+            align-items: center;
         }
 
         /* Legacy grammar (backward compat) */
@@ -460,9 +476,12 @@
             background: var(--primary); color: white; border: none;
             width: 100%; padding: 15px; border-radius: 16px; font-size: 16px; font-weight: 600;
             display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer;
         }
         .wm-btn.secondary { background: #f0f0f0; color: #333; margin-top: 10px; }
-        .wm-actions { display: flex; justify-content: center; margin-bottom: 20px; }
+        .wm-btn.save-btn { background: var(--success); margin-top: 10px; }
+        .wm-btn.saved-btn { background: #e0e0e0; color: var(--text-sub); margin-top: 10px; cursor: default; }
+        .wm-actions { display: flex; flex-direction: column; margin-bottom: 10px; }
 
         /* Loading */
         .loader {
@@ -479,7 +498,7 @@
             padding: 15px; background: white; border-radius: 12px; margin-bottom: 10px;
         }
         .history-content { flex: 1; cursor: pointer; }
-        .history-date { font-size: 12px; color: var(--text-sub); }
+        .history-date { font-size: 12px; color: var(--text-sub); display: flex; align-items: center; gap: 4px; }
         .history-score-badge {
             display: inline-block;
             font-size: 11px;
@@ -491,7 +510,7 @@
             margin-left: 6px;
         }
         .delete-btn {
-            background: #FF3B30; color: white; border: none;
+            background: var(--danger); color: white; border: none;
             width: 30px; height: 30px; border-radius: 50%;
             margin-left: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
         }
@@ -511,19 +530,288 @@
             font-size: 14px;
             margin-bottom: 30px;
         }
+
+        /* ===== Saved Vocabulary Tab ===== */
+        .vocab-tab-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .vocab-tab-header .section-title { margin: 0; }
+        .vocab-tab-count { color: var(--text-sub); font-size: 13px; }
+
+        .review-entry-card {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.1s;
+            margin: 15px 0;
+            border: none;
+            width: 100%;
+        }
+        .review-entry-card:active { transform: scale(0.98); }
+        .review-entry-card h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; }
+        .review-entry-card p { margin: 0; font-size: 13px; opacity: 0.85; }
+        .review-entry-card.disabled {
+            background: #e0e0e0;
+            color: var(--text-sub);
+            cursor: default;
+        }
+        .review-entry-card.disabled:active { transform: none; }
+
+        .saved-word-card {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            background: white;
+            border-radius: 14px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .saved-word-info { flex: 1; min-width: 0; }
+        .saved-word-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .saved-word-en { font-weight: 700; font-size: 16px; color: var(--text-main); }
+        .saved-word-zh { font-size: 14px; color: var(--text-sub); margin-top: 2px; }
+        .saved-word-next { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+
+        .srs-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 8px;
+            line-height: 1.4;
+        }
+        .srs-badge-0 { background: #ffebee; color: #c62828; }
+        .srs-badge-1 { background: #fff3e0; color: #e65100; }
+        .srs-badge-2 { background: #fff8e1; color: #f9a825; }
+        .srs-badge-3 { background: #e8f5e9; color: #2e7d32; }
+        .srs-badge-4 { background: #e3f2fd; color: #1565c0; }
+        .srs-badge-5 { background: #ede7f6; color: #4527a0; }
+
+        .saved-word-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: 10px;
+        }
+        .saved-word-speak {
+            background: #f0f0f0;
+            border: none;
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--text-sub);
+            transition: background 0.2s;
+        }
+        .saved-word-speak:active { background: #d0d0d0; }
+        .saved-word-delete {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 20px;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+        }
+
+        /* ===== SRS Review Overlay ===== */
+        .srs-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg);
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .srs-overlay.hidden { display: none !important; }
+
+        .srs-content {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .srs-top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .srs-close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-sub);
+            padding: 4px;
+            display: flex;
+            align-items: center;
+        }
+        .srs-progress-text {
+            font-weight: 600;
+            color: var(--text-sub);
+            font-size: 14px;
+        }
+        .srs-phase-badge {
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .srs-question-area {
+            text-align: center;
+            padding: 30px 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .srs-question-word {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+        .srs-question-hint {
+            font-size: 14px;
+            color: var(--text-sub);
+            margin-bottom: 10px;
+        }
+        .srs-listen-btn {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            font-size: 32px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto;
+            box-shadow: 0 4px 20px rgba(88, 86, 214, 0.3);
+            transition: transform 0.1s;
+        }
+        .srs-listen-btn:active { transform: scale(0.95); }
+
+        .srs-options-area {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 30px;
+        }
+        .srs-option {
+            padding: 16px 20px;
+            background: white;
+            border: 2px solid #e5e5e5;
+            border-radius: 16px;
+            font-size: 17px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: left;
+        }
+        .srs-option:active { transform: scale(0.98); }
+        .srs-option.correct {
+            background: #E8F5E9;
+            border-color: var(--success);
+            color: #2E7D32;
+        }
+        .srs-option.wrong {
+            background: #FFEBEE;
+            border-color: var(--danger);
+            color: #C62828;
+        }
+        .srs-option.disabled { pointer-events: none; }
+
+        .srs-result-area {
+            text-align: center;
+            padding: 30px 0;
+            flex: 1;
+        }
+        .srs-result-score {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 6px;
+        }
+        .srs-result-label {
+            font-size: 16px;
+            color: var(--text-sub);
+            margin-bottom: 30px;
+        }
+        .srs-result-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+        .srs-result-word {
+            font-weight: 600;
+            font-size: 16px;
+        }
+        .srs-result-word small {
+            font-weight: 400;
+            color: var(--text-sub);
+            font-size: 13px;
+        }
+        .srs-result-status {
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .srs-result-status.up { color: var(--success); }
+        .srs-result-status.down { color: var(--danger); }
+        .srs-result-status.same { color: var(--text-sub); }
+
+        .srs-done-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .srs-done-btn:active { transform: scale(0.98); }
     </style>
 </head>
 <body>
 
     <header>
         <h1>TOEIC AI Tutor</h1>
-        <button class="settings-btn" id="btnSettings">⚙️</button>
+        <button class="settings-btn" id="btnSettings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
     </header>
 
     <!-- TAB: Learn -->
     <div id="tabLearn" class="container">
         <div id="emptyState" class="empty-state">
-            <div class="empty-icon">📖</div>
+            <div class="empty-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
             <p>還沒有學習內容</p>
             <p>開始生成第一篇練習文章吧！</p>
             <button class="cta-btn" onclick="switchTab('practice')">開始練習</button>
@@ -559,6 +847,16 @@
         </div>
     </div>
 
+    <!-- TAB: Vocab -->
+    <div id="tabVocab" class="container hidden">
+        <div class="vocab-tab-header">
+            <h3 class="section-title">單字本 Vocabulary</h3>
+            <span class="vocab-tab-count" id="vocabCount">0 個單字</span>
+        </div>
+        <div id="srsReviewEntry"></div>
+        <div id="savedWordsList"></div>
+    </div>
+
     <!-- TAB: History -->
     <div id="tabHistory" class="container hidden">
         <h3 class="section-title" style="margin-top: 10px;">學習紀錄 History</h3>
@@ -569,22 +867,26 @@
     <!-- Bottom Tab Bar -->
     <nav class="tab-bar">
         <button class="tab-btn active" data-tab="learn" onclick="switchTab('learn')">
-            <span class="tab-icon">📖</span>
+            <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>
             <span class="tab-label">學習</span>
         </button>
         <button class="tab-btn" data-tab="practice" onclick="switchTab('practice')">
-            <span class="tab-icon">✏️</span>
+            <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg></span>
             <span class="tab-label">練習</span>
         </button>
+        <button class="tab-btn" data-tab="vocab" onclick="switchTab('vocab')">
+            <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg></span>
+            <span class="tab-label">單字本</span>
+        </button>
         <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
-            <span class="tab-icon">📋</span>
+            <span class="tab-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
             <span class="tab-label">紀錄</span>
         </button>
     </nav>
 
     <!-- Floating Audio Player -->
     <div class="player-bar hidden" id="playerBar">
-        <button class="play-btn" id="btnPlayPause">▶</button>
+        <button class="play-btn" id="btnPlayPause"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg></button>
         <div class="progress-container" id="progressContainer">
             <div class="progress-fill" id="progressBar"></div>
         </div>
@@ -595,13 +897,13 @@
     <div class="word-modal" id="wordModal">
         <div class="wm-header">
             <div class="wm-word" id="wmWord">Word</div>
-            <button class="large-speaker" id="btnWordAudio">🔊</button>
+            <button class="large-speaker" id="btnWordAudio"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
         </div>
         <div class="wm-meta"><span id="wmPos">n.</span> <span id="wmIpa">/IPA/</span></div>
         <div class="wm-def" id="wmDef">Definition</div>
-        <div style="font-style: italic; color: #666; margin-bottom: 20px;" id="wmEx">
+        <div style="font-style: italic; color: #666; margin-bottom: 20px; display: flex; align-items: center;" id="wmEx">
             <span id="wmExText">Example.</span>
-            <button class="mini-speaker" id="wmExSpeakBtn" style="margin-left:5px;">🔊</button>
+            <button class="mini-speaker" id="wmExSpeakBtn" style="margin-left:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
         </div>
         <div id="wmActionArea" class="wm-actions"></div>
         <button class="wm-btn secondary" onclick="closeModal()">關閉</button>
@@ -612,8 +914,8 @@
         <div class="modal-card">
             <h3>設定 Gemini API</h3>
             <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-guide-link">
-                🔑 點此取得 Google API Key <br>
-                <span style="font-size:11px; font-weight:400;">(需登入 Google 帳號)</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                <span>點此取得 Google API Key<br><span style="font-size:11px; font-weight:400;">(需登入 Google 帳號)</span></span>
             </a>
             <div class="input-group">
                 <input type="password" id="apiKeyInput" placeholder="Paste API Key here...">
@@ -623,9 +925,33 @@
         </div>
     </div>
 
+    <!-- SRS Review Overlay -->
+    <div class="srs-overlay hidden" id="srsOverlay">
+        <div class="srs-content">
+            <div class="srs-top-bar">
+                <button class="srs-close-btn" onclick="closeSrsReview()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                <span class="srs-progress-text" id="srsProgressText">1 / 9</span>
+                <span class="srs-phase-badge" id="srsPhaseBadge">英文 → 中文</span>
+            </div>
+            <div class="srs-question-area" id="srsQuestionArea"></div>
+            <div class="srs-options-area" id="srsOptionsArea"></div>
+        </div>
+    </div>
+
     <audio id="mainAudio"></audio>
 
 <script>
+    const ICONS = {
+        speaker: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`,
+        sparkle: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>`,
+        play: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 3 20 12 6 21 6 3"/></svg>`,
+        pause: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>`,
+        bookmark: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
+        bookmarkFill: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`,
+        check: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+        close: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`,
+    };
+
     /**
      * STATE
      */
@@ -643,6 +969,19 @@
     };
 
     /**
+     * SRS CONSTANTS
+     */
+    const SRS_INTERVALS = [0, 1, 3, 7, 14, 30];
+    const SRS_MIN_WORDS = 3;
+
+    function getNextReviewTime(level) {
+        const days = SRS_INTERVALS[Math.min(level, SRS_INTERVALS.length - 1)];
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return now.getTime() + days * 86400000;
+    }
+
+    /**
      * MODEL CONFIGURATION
      */
     const TEXT_MODEL = "gemini-2.5-flash";
@@ -654,7 +993,7 @@
      */
     const DB = {
         name: 'ToeicTutorDB',
-        version: 2,
+        version: 3,
         db: null,
 
         init() {
@@ -671,6 +1010,9 @@
                     }
                     if (!db.objectStoreNames.contains('settings')) {
                         db.createObjectStore('settings', { keyPath: 'key' });
+                    }
+                    if (!db.objectStoreNames.contains('savedWords')) {
+                        db.createObjectStore('savedWords', { keyPath: 'id' });
                     }
                 };
 
@@ -786,6 +1128,66 @@
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
             });
+        },
+
+        async addSavedWord(wordObj) {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction('savedWords', 'readwrite');
+                tx.objectStore('savedWords').put(wordObj);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        async getSavedWord(id) {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction('savedWords', 'readonly');
+                const req = tx.objectStore('savedWords').get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        async getSavedWords() {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction('savedWords', 'readonly');
+                const request = tx.objectStore('savedWords').getAll();
+                request.onsuccess = () => resolve(request.result || []);
+                request.onerror = () => reject(request.error);
+            });
+        },
+
+        async getWordsForReview() {
+            const all = await this.getSavedWords();
+            const now = Date.now();
+            return all.filter(w => w.nextReview <= now);
+        },
+
+        async updateWordSRS(id, level, nextReview) {
+            if (!this.db) await this.init();
+            return new Promise(async (resolve, reject) => {
+                const existing = await this.getSavedWord(id);
+                if (!existing) return resolve();
+                existing.level = level;
+                existing.nextReview = nextReview;
+                const tx = this.db.transaction('savedWords', 'readwrite');
+                tx.objectStore('savedWords').put(existing);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        async deleteSavedWord(id) {
+            if (!this.db) await this.init();
+            return new Promise((resolve, reject) => {
+                const tx = this.db.transaction('savedWords', 'readwrite');
+                tx.objectStore('savedWords').delete(id);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
         }
     };
 
@@ -795,6 +1197,7 @@
     function switchTab(tabName) {
         document.getElementById('tabLearn').classList.add('hidden');
         document.getElementById('tabPractice').classList.add('hidden');
+        document.getElementById('tabVocab').classList.add('hidden');
         document.getElementById('tabHistory').classList.add('hidden');
         document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
 
@@ -803,6 +1206,7 @@
         });
 
         if (tabName === 'history') renderHistory();
+        if (tabName === 'vocab') renderVocabTab();
     }
 
     /**
@@ -1050,7 +1454,6 @@
             container.appendChild(rowDiv);
         });
 
-        // Vocab
         const vocabContainer = document.getElementById('vocabList');
         vocabContainer.innerHTML = '';
         (data.vocabulary || []).slice(0, 8).forEach(v => {
@@ -1059,15 +1462,14 @@
             vocabContainer.innerHTML += `
                 <div class="vocab-card">
                     <div class="vocab-header">
-                        <div><span class="vocab-word">${v.word}</span><button class="mini-speaker" onclick="speakText('${safeWord}')">🔊</button></div>
+                        <div><span class="vocab-word">${v.word}</span><button class="mini-speaker" onclick="speakText('${safeWord}')">${ICONS.speaker}</button></div>
                         <div><span class="vocab-pos">${v.pos}</span><span class="vocab-ipa">${v.ipa}</span></div>
                     </div>
                     <div class="vocab-def">${v.def}</div>
-                    <div class="vocab-ex">"${v.ex}"<button class="mini-speaker" onclick="speakText('${safeEx}')">🔊</button></div>
+                    <div class="vocab-ex">"${v.ex}"<button class="mini-speaker" onclick="speakText('${safeEx}')">${ICONS.speaker}</button></div>
                 </div>`;
         });
 
-        // Phrases (new) or Grammar (legacy backward compat)
         const phraseContainer = document.getElementById('phraseList');
         const phraseTitle = document.getElementById('phraseSectionTitle');
         phraseContainer.innerHTML = '';
@@ -1075,13 +1477,14 @@
         if (data.phrases && data.phrases.length > 0) {
             phraseTitle.textContent = '常用片語 Key Phrases';
             data.phrases.forEach(p => {
+                const safePhrase = (p.phrase || '').replace(/'/g, "\\'");
                 const safeEx = (p.example || '').replace(/'/g, "\\'");
                 phraseContainer.innerHTML += `
                     <div class="phrase-card">
-                        <div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${p.phrase.replace(/'/g, "\\'")}')" style="margin-left:6px;">🔊</button></div>
+                        <div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${safePhrase}')" style="margin-left:6px;">${ICONS.speaker}</button></div>
                         <div class="phrase-meaning">${p.meaning}</div>
                         <div class="phrase-explanation">${p.explanation}</div>
-                        <div class="phrase-example">"${p.example}"<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">🔊</button></div>
+                        <div class="phrase-example">"${p.example}"<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">${ICONS.speaker}</button></div>
                     </div>`;
             });
         } else if (data.grammar && data.grammar.length > 0) {
@@ -1195,8 +1598,13 @@
     }
 
     playBtn.onclick = () => {
-        if (audioEl.paused) { audioEl.play(); playBtn.innerText = '⏸'; }
-        else { audioEl.pause(); playBtn.innerText = '▶'; }
+        if (audioEl.paused) {
+            audioEl.play();
+            playBtn.innerHTML = ICONS.pause;
+        } else {
+            audioEl.pause();
+            playBtn.innerHTML = ICONS.play;
+        }
     };
 
     progressContainer.onclick = (e) => {
@@ -1234,7 +1642,7 @@
     };
 
     audioEl.onended = () => {
-        playBtn.innerText = '▶';
+        playBtn.innerHTML = ICONS.play;
         progressBar.style.width = '0%';
         if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
             state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
@@ -1277,6 +1685,9 @@
         element.oncontextmenu = (e) => { e.preventDefault(); return false; };
     }
 
+    /**
+     * WORD MODAL (with save-to-vocab feature)
+     */
     function showWordModal(word) {
         const modal = document.getElementById('wordModal');
         const actionArea = document.getElementById('wmActionArea');
@@ -1301,6 +1712,7 @@
                 document.getElementById('wmExText').innerText = vocabItem.ex;
                 document.getElementById('wmExSpeakBtn').onclick = () => speakText(vocabItem.ex);
                 document.getElementById('wmEx').classList.remove('hidden');
+                await renderSaveButton(actionArea, word, vocabItem);
             } else {
                 document.getElementById('wmPos').innerText = '';
                 document.getElementById('wmIpa').innerText = '';
@@ -1310,7 +1722,7 @@
                 genBtn.className = 'wm-btn';
                 genBtn.style.marginTop = '0';
                 genBtn.style.background = 'var(--accent)';
-                genBtn.innerText = '✨ AI 解析此單字';
+                genBtn.innerHTML = `${ICONS.sparkle} AI 解析此單字`;
                 genBtn.onclick = async () => {
                     genBtn.disabled = true; genBtn.innerText = '生成中...';
                     try {
@@ -1322,6 +1734,7 @@
                         document.getElementById('wmExSpeakBtn').onclick = () => speakText(info.ex);
                         document.getElementById('wmEx').classList.remove('hidden');
                         genBtn.remove();
+                        await renderSaveButton(actionArea, word, info);
                     } catch(e) {
                         genBtn.innerText = '生成失敗，請重試'; genBtn.disabled = false; alert(e.message);
                     }
@@ -1332,12 +1745,355 @@
         })();
     }
 
+    async function renderSaveButton(container, word, vocabItem) {
+        const existing = await DB.getSavedWord(word.toLowerCase());
+        const saveBtn = document.createElement('button');
+        if (existing) {
+            saveBtn.className = 'wm-btn saved-btn';
+            saveBtn.innerHTML = `${ICONS.bookmarkFill} 已儲存`;
+            saveBtn.disabled = true;
+        } else {
+            saveBtn.className = 'wm-btn save-btn';
+            saveBtn.innerHTML = `${ICONS.bookmark} 儲存到單字本`;
+            saveBtn.onclick = async () => {
+                const entry = {
+                    id: word.toLowerCase(),
+                    en: vocabItem.word || word,
+                    zh: vocabItem.def,
+                    pos: vocabItem.pos,
+                    ipa: vocabItem.ipa,
+                    createdAt: Date.now(),
+                    nextReview: getNextReviewTime(0),
+                    level: 0,
+                };
+                await DB.addSavedWord(entry);
+                saveBtn.className = 'wm-btn saved-btn';
+                saveBtn.innerHTML = `${ICONS.bookmarkFill} 已儲存`;
+                saveBtn.disabled = true;
+                saveBtn.onclick = null;
+            };
+        }
+        container.appendChild(saveBtn);
+    }
+
     function closeModal() {
         document.getElementById('wordModal').classList.remove('active');
         if (state.highlightedElement) {
             state.highlightedElement.classList.remove('word-highlighted');
             state.highlightedElement = null;
         }
+    }
+
+    /**
+     * VOCABULARY TAB
+     */
+    async function renderVocabTab() {
+        const words = await DB.getSavedWords();
+        const countEl = document.getElementById('vocabCount');
+        const entryEl = document.getElementById('srsReviewEntry');
+        const listEl = document.getElementById('savedWordsList');
+
+        countEl.textContent = `${words.length} 個單字`;
+
+        const dueWords = words.filter(w => w.nextReview <= Date.now());
+
+        entryEl.innerHTML = '';
+        if (words.length < SRS_MIN_WORDS) {
+            const card = document.createElement('div');
+            card.className = 'review-entry-card disabled';
+            card.innerHTML = `<h3>SRS 複習</h3><p>至少需要 ${SRS_MIN_WORDS} 個單字才能開始複習（目前 ${words.length} 個）</p>`;
+            entryEl.appendChild(card);
+        } else if (dueWords.length < SRS_MIN_WORDS) {
+            const nextDue = words
+                .filter(w => w.nextReview > Date.now())
+                .sort((a, b) => a.nextReview - b.nextReview);
+            const nextDate = nextDue.length > 0 ? new Date(nextDue[0].nextReview).toLocaleDateString() : '—';
+            const card = document.createElement('div');
+            card.className = 'review-entry-card disabled';
+            card.innerHTML = `<h3>SRS 複習</h3><p>目前無足夠待複習單字（需 ${SRS_MIN_WORDS} 個，待複習 ${dueWords.length} 個）<br>下次複習：${nextDate}</p>`;
+            entryEl.appendChild(card);
+        } else {
+            const card = document.createElement('button');
+            card.className = 'review-entry-card';
+            card.innerHTML = `<h3>開始 SRS 複習</h3><p>${dueWords.length} 個單字待複習</p>`;
+            card.onclick = () => startSrsReview(dueWords, words);
+            entryEl.appendChild(card);
+        }
+
+        listEl.innerHTML = '';
+        if (words.length === 0) {
+            listEl.innerHTML = '<p style="text-align:center; color:var(--text-sub); padding: 30px 0;">尚無儲存單字<br><span style="font-size:13px;">長按文章中的單字即可儲存</span></p>';
+            return;
+        }
+
+        words.sort((a, b) => b.createdAt - a.createdAt).forEach(w => {
+            const card = document.createElement('div');
+            card.className = 'saved-word-card';
+
+            const nextDate = new Date(w.nextReview);
+            const isOverdue = w.nextReview <= Date.now();
+            const dateStr = isOverdue ? '可複習' : nextDate.toLocaleDateString();
+
+            card.innerHTML = `
+                <div class="saved-word-info">
+                    <div class="saved-word-top">
+                        <span class="saved-word-en">${w.en}</span>
+                        <span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span>
+                    </div>
+                    <div class="saved-word-zh">${w.zh}</div>
+                    <div class="saved-word-next">${isOverdue ? '⏰ ' : ''}${dateStr}</div>
+                </div>
+                <div class="saved-word-actions">
+                    <button class="saved-word-speak" data-word="${w.en}">${ICONS.speaker}</button>
+                    <button class="saved-word-delete" data-id="${w.id}">${ICONS.close}</button>
+                </div>
+            `;
+
+            card.querySelector('.saved-word-speak').onclick = () => speakText(w.en);
+            card.querySelector('.saved-word-delete').onclick = async () => {
+                if (confirm(`確定刪除「${w.en}」？`)) {
+                    await DB.deleteSavedWord(w.id);
+                    renderVocabTab();
+                }
+            };
+
+            listEl.appendChild(card);
+        });
+    }
+
+    /**
+     * SRS REVIEW SYSTEM
+     */
+    const srsState = {
+        active: false,
+        words: [],
+        allWords: [],
+        phase: 1,
+        wordIdx: 0,
+        results: {},
+        answered: false,
+    };
+
+    function shuffleArray(arr) {
+        const a = [...arr];
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function getDistractors(correctWord, allWords, field) {
+        const others = allWords.filter(w => w.id !== correctWord.id);
+        const shuffled = shuffleArray(others);
+        return shuffled.slice(0, 2).map(w => w[field]);
+    }
+
+    function startSrsReview(dueWords, allWords) {
+        const selected = shuffleArray(dueWords).slice(0, 3);
+        srsState.active = true;
+        srsState.words = selected;
+        srsState.allWords = allWords;
+        srsState.phase = 1;
+        srsState.wordIdx = 0;
+        srsState.answered = false;
+        srsState.results = {};
+        selected.forEach(w => {
+            srsState.results[w.id] = { p1: null, p2: null, p3: null };
+        });
+
+        document.getElementById('srsOverlay').classList.remove('hidden');
+        renderSrsQuestion();
+    }
+
+    function closeSrsReview() {
+        if (srsState.active && !confirm('確定離開？本次複習進度將不會儲存。')) return;
+        srsState.active = false;
+        document.getElementById('srsOverlay').classList.add('hidden');
+    }
+
+    function renderSrsQuestion() {
+        const qArea = document.getElementById('srsQuestionArea');
+        const oArea = document.getElementById('srsOptionsArea');
+        const progressText = document.getElementById('srsProgressText');
+        const phaseBadge = document.getElementById('srsPhaseBadge');
+
+        const questionNum = (srsState.phase - 1) * 3 + srsState.wordIdx + 1;
+        progressText.textContent = `${questionNum} / 9`;
+
+        const phaseLabels = { 1: '英文 → 中文', 2: '中文 → 英文', 3: '聽力測驗' };
+        phaseBadge.textContent = phaseLabels[srsState.phase];
+
+        const word = srsState.words[srsState.wordIdx];
+        srsState.answered = false;
+
+        qArea.innerHTML = '';
+        oArea.innerHTML = '';
+
+        if (srsState.phase === 1) {
+            qArea.innerHTML = `
+                <div class="srs-question-hint">請選擇正確的中文翻譯</div>
+                <div class="srs-question-word">${word.en}</div>
+            `;
+            setTimeout(() => speakText(word.en), 300);
+
+            const correct = word.zh;
+            const distractors = getDistractors(word, srsState.allWords, 'zh');
+            const options = shuffleArray([correct, ...distractors]);
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'srs-option';
+                btn.textContent = opt;
+                btn.onclick = () => handleSrsAnswer(btn, opt, correct, 'p1');
+                oArea.appendChild(btn);
+            });
+        } else if (srsState.phase === 2) {
+            qArea.innerHTML = `
+                <div class="srs-question-hint">請選擇正確的英文單字</div>
+                <div class="srs-question-word">${word.zh}</div>
+            `;
+
+            const correct = word.en;
+            const distractors = getDistractors(word, srsState.allWords, 'en');
+            const options = shuffleArray([correct, ...distractors]);
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'srs-option';
+                btn.textContent = opt;
+                btn.onclick = () => handleSrsAnswer(btn, opt, correct, 'p2');
+                oArea.appendChild(btn);
+            });
+        } else if (srsState.phase === 3) {
+            qArea.innerHTML = `
+                <div class="srs-question-hint">聽發音，選擇正確的中文翻譯</div>
+                <button class="srs-listen-btn" id="srsListenBtn">${ICONS.speaker}</button>
+            `;
+            document.getElementById('srsListenBtn').onclick = () => speakText(word.en);
+            setTimeout(() => speakText(word.en), 300);
+
+            const correct = word.zh;
+            const distractors = getDistractors(word, srsState.allWords, 'zh');
+            const options = shuffleArray([correct, ...distractors]);
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'srs-option';
+                btn.textContent = opt;
+                btn.onclick = () => handleSrsAnswer(btn, opt, correct, 'p3');
+                oArea.appendChild(btn);
+            });
+        }
+    }
+
+    function handleSrsAnswer(btnEl, selected, correct, phaseKey) {
+        if (srsState.answered) return;
+        srsState.answered = true;
+
+        const word = srsState.words[srsState.wordIdx];
+        const isCorrect = selected === correct;
+        srsState.results[word.id][phaseKey] = isCorrect;
+
+        document.querySelectorAll('.srs-option').forEach(btn => {
+            btn.classList.add('disabled');
+            if (btn.textContent === correct) {
+                btn.classList.add('correct');
+            }
+        });
+
+        if (!isCorrect) {
+            btnEl.classList.add('wrong');
+        }
+
+        setTimeout(() => nextSrsQuestion(), isCorrect ? 800 : 1500);
+    }
+
+    function nextSrsQuestion() {
+        srsState.wordIdx++;
+        if (srsState.wordIdx >= 3) {
+            srsState.wordIdx = 0;
+            srsState.phase++;
+        }
+        if (srsState.phase > 3) {
+            showSrsResults();
+            return;
+        }
+        renderSrsQuestion();
+    }
+
+    async function showSrsResults() {
+        const qArea = document.getElementById('srsQuestionArea');
+        const oArea = document.getElementById('srsOptionsArea');
+        const progressText = document.getElementById('srsProgressText');
+        const phaseBadge = document.getElementById('srsPhaseBadge');
+
+        progressText.textContent = '完成';
+        phaseBadge.textContent = '結果';
+
+        let totalCorrect = 0;
+        const wordResults = [];
+
+        for (const word of srsState.words) {
+            const r = srsState.results[word.id];
+            const allCorrect = r.p1 && r.p2 && r.p3;
+            const anyWrong = !r.p1 || !r.p2 || !r.p3;
+            const correctCount = [r.p1, r.p2, r.p3].filter(Boolean).length;
+            totalCorrect += correctCount;
+
+            let newLevel = word.level;
+            if (allCorrect) {
+                newLevel = Math.min(word.level + 1, SRS_INTERVALS.length - 1);
+            } else if (anyWrong) {
+                newLevel = Math.max(word.level - 1, 0);
+            }
+
+            const newNextReview = getNextReviewTime(newLevel);
+            await DB.updateWordSRS(word.id, newLevel, newNextReview);
+
+            wordResults.push({
+                word: word,
+                oldLevel: word.level,
+                newLevel: newLevel,
+                allCorrect: allCorrect,
+                correctCount: correctCount,
+            });
+        }
+
+        srsState.active = false;
+
+        qArea.innerHTML = `
+            <div class="srs-result-score">${totalCorrect}/9</div>
+            <div class="srs-result-label">答對題數</div>
+        `;
+
+        oArea.innerHTML = '';
+        wordResults.forEach(wr => {
+            const levelDiff = wr.newLevel - wr.oldLevel;
+            let statusClass = 'same';
+            let statusText = `Lv.${wr.oldLevel}`;
+            if (levelDiff > 0) {
+                statusClass = 'up';
+                statusText = `Lv.${wr.oldLevel} → Lv.${wr.newLevel}`;
+            } else if (levelDiff < 0) {
+                statusClass = 'down';
+                statusText = `Lv.${wr.oldLevel} → Lv.${wr.newLevel}`;
+            }
+
+            oArea.innerHTML += `
+                <div class="srs-result-item">
+                    <div class="srs-result-word">${wr.word.en} <small>${wr.word.zh}</small></div>
+                    <div class="srs-result-status ${statusClass}">${wr.correctCount}/3 ${statusText}</div>
+                </div>
+            `;
+        });
+
+        oArea.innerHTML += `<button class="srs-done-btn" onclick="finishSrsReview()">完成</button>`;
+    }
+
+    function finishSrsReview() {
+        document.getElementById('srsOverlay').classList.add('hidden');
+        renderVocabTab();
     }
 
     /**
@@ -1374,16 +2130,17 @@
                 const div = document.createElement('div');
                 div.className = 'history-item';
                 const scoreBadge = item.score ? `<span class="history-score-badge">TOEIC ${item.score}</span>` : '';
-                div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${item.audio ? '🔊' : ''} ${scoreBadge}</span></div>`;
+                const audioIcon = item.audio ? `<span style="font-size:12px; color:var(--text-sub); display:inline-flex; align-items:center;">${ICONS.speaker}</span>` : '';
+                div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge}</span></div>`;
                 div.onclick = (e) => {
-                    if (e.target.classList.contains('delete-btn')) return;
+                    if (e.target.closest('.delete-btn')) return;
                     loadSession(item);
                     switchTab('learn');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 };
                 const delBtn = document.createElement('button');
                 delBtn.className = 'delete-btn';
-                delBtn.innerText = '×';
+                delBtn.innerHTML = ICONS.close;
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteHistoryItem(item.id); };
                 div.appendChild(delBtn);
                 list.appendChild(div);
@@ -1434,7 +2191,7 @@
     }
 
     /**
-     * APP INIT (async: load API key from IndexedDB, migrate from localStorage if needed)
+     * APP INIT
      */
     (async function initApp() {
         try {
