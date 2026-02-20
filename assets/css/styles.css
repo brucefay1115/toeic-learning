@@ -502,8 +502,11 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
     border: 1.5px solid #FFD54F;
 }
+.about-version {
+    font-size: 13px; color: var(--text-sub); margin-top: 32px; opacity: 0.6;
+}
 .about-footer {
-    font-size: 12px; color: var(--text-sub); margin-top: 36px; opacity: 0.7;
+    font-size: 12px; color: var(--text-sub); margin-top: 8px; opacity: 0.7;
 }
 
 /* PWA Install Prompt */

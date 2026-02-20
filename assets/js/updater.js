@@ -37,7 +37,14 @@ function showUpdateBanner(info, onUpdate) {
 function promptUpdate(newWorker) {
   fetchChangelog().then((info) => {
     showUpdateBanner(info, () => {
+      const btn = document.getElementById('btnDoUpdate');
+      btn.disabled = true;
+      btn.textContent = '更新中…';
       newWorker.postMessage('skipWaiting');
+
+      setTimeout(() => {
+        btn.textContent = '請關閉 App 後重新開啟以完成更新';
+      }, 3000);
     });
   });
 }

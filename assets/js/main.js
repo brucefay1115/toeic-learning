@@ -158,5 +158,10 @@ GENERATE_BTN.onclick = async () => {
         }
         initUpdater();
         initInstallPrompt();
+
+        fetch('./version.json?t=' + Date.now())
+          .then(r => r.ok ? r.json() : null)
+          .then(d => { if (d?.version) document.getElementById('appVersion').textContent = `v${d.version}`; })
+          .catch(() => {});
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();
