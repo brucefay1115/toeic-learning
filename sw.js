@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toeic-tutor-v1.0.0';
+const CACHE_NAME = 'toeic-tutor-v1.1.0';
 
 const STATIC_ASSETS = [
   './',
@@ -17,6 +17,7 @@ const STATIC_ASSETS = [
   './assets/js/history.js',
   './assets/js/driveSync.js',
   './assets/js/updater.js',
+  './assets/js/installPrompt.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
 ];

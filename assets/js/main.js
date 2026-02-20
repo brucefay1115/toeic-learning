@@ -11,6 +11,7 @@ import { closeModal, renderVocabTab, setSrsTrigger } from './vocab.js';
 import { startSrsReview, closeSrsReview, finishSrsReview, setOnFinish } from './srs.js';
 import { saveToHistory, renderHistory, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
 import { initUpdater } from './updater.js';
+import { initInstallPrompt } from './installPrompt.js';
 
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
@@ -156,5 +157,6 @@ GENERATE_BTN.onclick = async () => {
             DriveSync.updateUI();
         }
         initUpdater();
+        initInstallPrompt();
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();
