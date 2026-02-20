@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toeic-tutor-v1.1.0';
+const CACHE_NAME = 'toeic-tutor-v1.1.1';
 
 const STATIC_ASSETS = [
   './',
@@ -26,7 +26,6 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())
   );
 });
 
