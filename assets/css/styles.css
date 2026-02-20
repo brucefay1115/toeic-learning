@@ -464,3 +464,44 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     transition: background 0.2s;
 }
 .update-btn:active { background: rgba(255,255,255,0.3); }
+
+/* About Page */
+.about-page { text-align: center; padding: 20px 0 40px; }
+.about-icon-circle {
+    width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 16px;
+    background: linear-gradient(135deg, var(--primary-light) 0%, #d4d3ff 100%);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--primary);
+}
+.about-name { font-size: 22px; font-weight: 700; margin: 0 0 10px; color: var(--text-main); }
+.about-bio {
+    font-size: 14px; color: var(--text-sub); line-height: 1.7;
+    margin: 0 auto 30px; max-width: 320px;
+}
+.about-links { display: flex; flex-direction: column; gap: 12px; }
+.about-link-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px; background: var(--card-bg); border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.04); text-decoration: none;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+.about-link-card:active { transform: scale(0.98); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.about-link-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.about-link-icon.fb { background: #E7F0FF; color: #1877F2; }
+.about-link-icon.linkedin { background: #E8F4FD; color: #0A66C2; }
+.about-link-icon.github { background: #F0F0F0; color: #24292F; }
+.about-link-icon.coffee { background: #FFF3E0; color: #FF813F; }
+.about-link-text { flex: 1; text-align: left; }
+.about-link-title { font-size: 15px; font-weight: 600; color: var(--text-main); display: block; }
+.about-link-desc { font-size: 12px; color: var(--text-sub); display: block; margin-top: 2px; }
+.about-link-arrow { color: var(--text-sub); flex-shrink: 0; display: flex; align-items: center; }
+.about-link-card.coffee {
+    background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
+    border: 1.5px solid #FFD54F;
+}
+.about-footer {
+    font-size: 12px; color: var(--text-sub); margin-top: 36px; opacity: 0.7;
+}

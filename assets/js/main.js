@@ -25,7 +25,7 @@ window.DriveSync = DriveSync;
 
 /* ── Tab switching ── */
 function switchTab(tabName) {
-    ['tabLearn', 'tabPractice', 'tabVocab', 'tabHistory'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['tabLearn', 'tabPractice', 'tabVocab', 'tabHistory', 'tabAbout'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
     if (tabName === 'history') renderHistory();
