@@ -199,6 +199,7 @@
         .vocab-ipa { font-family: 'Times New Roman', serif; color: var(--text-sub); margin-left: 8px; }
         .vocab-def { margin: 8px 0; color: #444; }
         .vocab-ex { font-style: italic; color: var(--text-sub); font-size: 14px; margin-top: 5px; }
+        .vocab-ex-zh { font-size: 13px; color: var(--text-sub); margin-top: 3px; padding-left: 4px; }
         .vocab-save-btn {
             display: inline-flex; align-items: center; justify-content: center;
             width: 28px; height: 28px; border-radius: 50%; background: #f0f0f0;
@@ -229,6 +230,7 @@
         .phrase-meaning { font-size: 15px; color: var(--text-main); margin-bottom: 6px; }
         .phrase-explanation { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; line-height: 1.5; }
         .phrase-example { font-style: italic; font-size: 14px; color: #555; padding-left: 10px; border-left: 2px solid var(--primary-light); display: flex; align-items: center; }
+        .phrase-example-zh { font-size: 13px; color: var(--text-sub); margin-top: 4px; padding-left: 10px; }
 
         .grammar-list { list-style: none; padding: 0; }
         .grammar-item { background: white; margin-bottom: 10px; padding: 15px; border-radius: 12px; display: flex; align-items: flex-start; }
@@ -348,6 +350,13 @@
         .srs-result-status.same { color: var(--text-sub); }
         .srs-done-btn { width: 100%; padding: 16px; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; margin-top: 20px; cursor: pointer; transition: transform 0.1s; }
         .srs-done-btn:active { transform: scale(0.98); }
+        .srs-reveal-word { font-size: 22px; font-weight: 700; color: var(--primary); margin-top: 12px; animation: fadeInUp 0.3s ease; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .srs-listen3-container { display: flex; gap: 20px; justify-content: center; margin-top: 20px; }
+        .srs-listen3-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .srs-listen3-btn { width: 64px; height: 64px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(88,86,214,0.25); transition: transform 0.1s; }
+        .srs-listen3-btn:active { transform: scale(0.93); }
+        .srs-listen3-label { font-size: 16px; font-weight: 700; color: var(--text-main); }
 
         /* Cloud Sync */
         .header-right { display: flex; align-items: center; gap: 6px; }
@@ -539,10 +548,11 @@
         </div>
         <div class="wm-meta"><span id="wmPos">n.</span> <span id="wmIpa">/IPA/</span></div>
         <div class="wm-def" id="wmDef">Definition</div>
-        <div style="font-style: italic; color: #666; margin-bottom: 20px; display: flex; align-items: center;" id="wmEx">
+        <div style="font-style: italic; color: #666; margin-bottom: 6px; display: flex; align-items: center;" id="wmEx">
             <span id="wmExText">Example.</span>
             <button class="mini-speaker" id="wmExSpeakBtn" style="margin-left:5px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></button>
         </div>
+        <div style="font-size: 14px; color: var(--text-sub); margin-bottom: 20px;" id="wmExZh" class="hidden"></div>
         <div id="wmActionArea" class="wm-actions"></div>
         <button class="wm-btn secondary" onclick="closeModal()">關閉</button>
     </div>
@@ -1219,8 +1229,8 @@
             Output JSON strictly:
             {
                 "segments": [{"en": "Sentence 1 English", "zh": "Sentence 1 Traditional Chinese Translation"}],
-                "vocabulary": [{"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "Chinese definition", "ex": "English example sentence ONLY (No Chinese translation, No special symbols)"}],
-                "phrases": [{"phrase": "phrase from passage", "meaning": "Traditional Chinese meaning", "explanation": "Brief Traditional Chinese explanation", "example": "English example sentence"}]
+                "vocabulary": [{"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "Chinese definition", "ex": "English example sentence ONLY (No Chinese translation, No special symbols)", "ex_zh": "Traditional Chinese translation of the example sentence"}],
+                "phrases": [{"phrase": "phrase from passage", "meaning": "Traditional Chinese meaning", "explanation": "Brief Traditional Chinese explanation", "example": "English example sentence", "example_zh": "Traditional Chinese translation of the example sentence"}]
             }
             For "phrases": pick 2-3 commonly used phrases from the passage. Return ONLY raw JSON.
         `;
@@ -1237,7 +1247,7 @@
     async function fetchWordDetails(word) {
         const cached = await DB.getWord(word);
         if (cached) return cached;
-        const prompt = `Explain the word "${word}" for a TOEIC student. Output JSON strictly: {"word":"${word}","pos":"part of speech","ipa":"IPA symbol","def":"Traditional Chinese definition","ex":"A simple English example sentence. NO Chinese translation."}`;
+        const prompt = `Explain the word "${word}" for a TOEIC student. Keep it concise like a vocabulary card. Output JSON strictly: {"word":"${word}","pos":"part of speech (e.g. n./v./adj.)","ipa":"IPA symbol","def":"Brief Traditional Chinese definition (one short phrase)","ex":"One simple short English example sentence.","ex_zh":"Traditional Chinese translation of the example sentence"}`;
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${TEXT_MODEL}:generateContent?key=${state.apiKey}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
@@ -1349,7 +1359,8 @@
                     <div><span class="vocab-pos">${v.pos}</span><span class="vocab-ipa">${v.ipa}</span><button class="vocab-save-btn">${ICONS.bookmark}</button></div>
                 </div>
                 <div class="vocab-def">${v.def}</div>
-                <div class="vocab-ex">"${v.ex}"<button class="mini-speaker" onclick="speakText('${safeEx}')">${ICONS.speaker}</button></div>`;
+                <div class="vocab-ex">"${v.ex}"<button class="mini-speaker" onclick="speakText('${safeEx}')">${ICONS.speaker}</button></div>
+                ${v.ex_zh ? `<div class="vocab-ex-zh">${v.ex_zh}</div>` : ''}`;
             const saveBtn = card.querySelector('.vocab-save-btn');
             DB.getSavedWord(v.word.toLowerCase()).then(existing => {
                 if (existing) { saveBtn.innerHTML = ICONS.bookmarkFill; saveBtn.classList.add('saved'); }
@@ -1377,7 +1388,7 @@
             data.phrases.forEach(p => {
                 const safePhrase = (p.phrase || '').replace(/'/g, "\\'");
                 const safeEx = (p.example || '').replace(/'/g, "\\'");
-                phraseContainer.innerHTML += `<div class="phrase-card"><div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${safePhrase}')" style="margin-left:6px;">${ICONS.speaker}</button></div><div class="phrase-meaning">${p.meaning}</div><div class="phrase-explanation">${p.explanation}</div><div class="phrase-example">"${p.example}"<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">${ICONS.speaker}</button></div></div>`;
+                phraseContainer.innerHTML += `<div class="phrase-card"><div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${safePhrase}')" style="margin-left:6px;">${ICONS.speaker}</button></div><div class="phrase-meaning">${p.meaning}</div><div class="phrase-explanation">${p.explanation}</div><div class="phrase-example">"${p.example}"<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">${ICONS.speaker}</button></div>${p.example_zh ? `<div class="phrase-example-zh">${p.example_zh}</div>` : ''}</div>`;
             });
         } else if (data.grammar && data.grammar.length > 0) {
             phraseTitle.textContent = '文法解析 Grammar Point';
@@ -1486,15 +1497,19 @@
                 document.getElementById('wmDef').innerText = vocabItem.def; document.getElementById('wmExText').innerText = vocabItem.ex;
                 document.getElementById('wmExSpeakBtn').onclick = () => speakText(vocabItem.ex);
                 document.getElementById('wmEx').classList.remove('hidden');
+                const exZhEl = document.getElementById('wmExZh');
+                if (vocabItem.ex_zh) { exZhEl.textContent = vocabItem.ex_zh; exZhEl.classList.remove('hidden'); }
+                else { exZhEl.classList.add('hidden'); }
                 await renderSaveButton(actionArea, word, vocabItem);
             } else {
                 document.getElementById('wmPos').innerText = ''; document.getElementById('wmIpa').innerText = '';
                 document.getElementById('wmDef').innerText = '尚無詳細資料'; document.getElementById('wmEx').classList.add('hidden');
+                document.getElementById('wmExZh').classList.add('hidden');
                 const genBtn = document.createElement('button'); genBtn.className = 'wm-btn'; genBtn.style.marginTop = '0'; genBtn.style.background = 'var(--accent)';
                 genBtn.innerHTML = `${ICONS.sparkle} AI 解析此單字`;
                 genBtn.onclick = async () => {
                     genBtn.disabled = true; genBtn.innerText = '生成中...';
-                    try { const info = await fetchWordDetails(word); document.getElementById('wmPos').innerText = info.pos; document.getElementById('wmIpa').innerText = info.ipa; document.getElementById('wmDef').innerText = info.def; document.getElementById('wmExText').innerText = info.ex; document.getElementById('wmExSpeakBtn').onclick = () => speakText(info.ex); document.getElementById('wmEx').classList.remove('hidden'); genBtn.remove(); await renderSaveButton(actionArea, word, info); }
+                    try { const info = await fetchWordDetails(word); document.getElementById('wmPos').innerText = info.pos; document.getElementById('wmIpa').innerText = info.ipa; document.getElementById('wmDef').innerText = info.def; document.getElementById('wmExText').innerText = info.ex; document.getElementById('wmExSpeakBtn').onclick = () => speakText(info.ex); document.getElementById('wmEx').classList.remove('hidden'); const exZhEl = document.getElementById('wmExZh'); if (info.ex_zh) { exZhEl.textContent = info.ex_zh; exZhEl.classList.remove('hidden'); } else { exZhEl.classList.add('hidden'); } genBtn.remove(); await renderSaveButton(actionArea, word, info); }
                     catch(e) { genBtn.innerText = '生成失敗，請重試'; genBtn.disabled = false; alert(e.message); }
                 };
                 actionArea.appendChild(genBtn);
@@ -1512,13 +1527,28 @@
             if (await DB.getSavedWord(word.toLowerCase())) {
                 await DB.deleteSavedWord(word.toLowerCase());
                 setUnsaved();
+                syncVocabCardBookmark(word, false);
             } else {
                 await DB.addSavedWord({ id: word.toLowerCase(), en: vocabItem.word || word, zh: vocabItem.def, pos: vocabItem.pos, ipa: vocabItem.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
                 setSaved();
+                syncVocabCardBookmark(word, true);
             }
         };
         container.appendChild(btn);
     }
+    function syncVocabCardBookmark(wordId, isSaved) {
+        document.querySelectorAll('#vocabList .vocab-card').forEach(card => {
+            const wordEl = card.querySelector('.vocab-word');
+            if (wordEl && wordEl.textContent.toLowerCase() === wordId.toLowerCase()) {
+                const btn = card.querySelector('.vocab-save-btn');
+                if (btn) {
+                    if (isSaved) { btn.innerHTML = ICONS.bookmarkFill; btn.classList.add('saved'); }
+                    else { btn.innerHTML = ICONS.bookmark; btn.classList.remove('saved'); }
+                }
+            }
+        });
+    }
+
     function closeModal() { document.getElementById('wordModal').classList.remove('active'); if (state.highlightedElement) { state.highlightedElement.classList.remove('word-highlighted'); state.highlightedElement = null; } }
 
     /* Vocabulary Tab */
@@ -1551,7 +1581,7 @@
             const dateStr = isOverdue ? '可複習' : new Date(w.nextReview).toLocaleDateString();
             card.innerHTML = `<div class="saved-word-info"><div class="saved-word-top"><span class="saved-word-en">${w.en}</span><span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span></div><div class="saved-word-zh">${w.zh}</div><div class="saved-word-next">${isOverdue ? '⏰ ' : ''}下次複習：${dateStr}</div></div><div class="saved-word-actions"><button class="saved-word-speak">${ICONS.speaker}</button><button class="saved-word-delete">${ICONS.close}</button></div>`;
             card.querySelector('.saved-word-speak').onclick = () => speakText(w.en);
-            card.querySelector('.saved-word-delete').onclick = async () => { if (confirm(`確定刪除「${w.en}」？`)) { await DB.deleteSavedWord(w.id); renderVocabTab(); } };
+            card.querySelector('.saved-word-delete').onclick = async () => { if (confirm(`確定刪除「${w.en}」？`)) { await DB.deleteSavedWord(w.id); syncVocabCardBookmark(w.en, false); renderVocabTab(); } };
             listEl.appendChild(card);
         });
     }
@@ -1564,9 +1594,12 @@
 
     function startSrsReview(dueWords, allWords) {
         const selected = shuffleArray(dueWords).slice(0, SRS_MAX_WORDS);
-        const types = ['en2zh', 'zh2en', 'listen'];
         let questions = [];
-        selected.forEach(w => { types.forEach(t => questions.push({ word: w, type: t })); });
+        selected.forEach(w => {
+            questions.push({ word: w, type: 'en2zh' });
+            questions.push({ word: w, type: 'zh2en' });
+            questions.push({ word: w, type: Math.random() < 0.5 ? 'listen' : 'listen3' });
+        });
         questions = shuffleArray(questions);
 
         srsState.active = true;
@@ -1583,19 +1616,32 @@
 
     function closeSrsReview() { if (srsState.active && !confirm('確定離開？本次複習進度將不會儲存。')) return; srsState.active = false; document.getElementById('srsOverlay').classList.add('hidden'); }
 
+    function speakTextPromise(text) {
+        return new Promise(resolve => {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'en-US'; u.rate = 0.9;
+            u.onend = resolve;
+            u.onerror = resolve;
+            window.speechSynthesis.speak(u);
+        });
+    }
+
     function renderSrsQuestion() {
         const q = srsState.questions[srsState.currentQ];
         const word = q.word;
         const qArea = document.getElementById('srsQuestionArea');
         const oArea = document.getElementById('srsOptionsArea');
         document.getElementById('srsProgressText').textContent = `${srsState.currentQ + 1} / ${srsState.questions.length}`;
-        const typeLabels = { en2zh: '英文 → 中文', zh2en: '中文 → 英文', listen: '聽力測驗' };
+        const typeLabels = { en2zh: '英文 → 中文', zh2en: '中文 → 英文', listen: '聽力測驗', listen3: '聽力測驗' };
         document.getElementById('srsPhaseBadge').textContent = typeLabels[q.type];
         srsState.answered = false;
         qArea.innerHTML = ''; oArea.innerHTML = '';
 
+        const safeEn = word.en.replace(/'/g, "\\'");
+
         if (q.type === 'en2zh') {
-            qArea.innerHTML = `<div class="srs-question-hint">請選擇正確的中文翻譯</div><div class="srs-question-word">${word.en}</div>`;
+            qArea.innerHTML = `<div class="srs-question-hint">請選擇正確的中文翻譯</div><div class="srs-question-word">${word.en} <button class="mini-speaker" onclick="speakText('${safeEn}')">${ICONS.speaker}</button></div>`;
             setTimeout(() => speakText(word.en), 300);
             const opts = shuffleArray([word.zh, ...getDistractors(word, srsState.allWords, 'zh')]);
             opts.forEach(o => { const b = document.createElement('button'); b.className = 'srs-option'; b.textContent = o; b.onclick = () => handleSrsAnswer(b, o, word.zh, q.type); oArea.appendChild(b); });
@@ -1603,12 +1649,47 @@
             qArea.innerHTML = `<div class="srs-question-hint">請選擇正確的英文單字</div><div class="srs-question-word">${word.zh}</div>`;
             const opts = shuffleArray([word.en, ...getDistractors(word, srsState.allWords, 'en')]);
             opts.forEach(o => { const b = document.createElement('button'); b.className = 'srs-option'; b.textContent = o; b.onclick = () => handleSrsAnswer(b, o, word.en, q.type); oArea.appendChild(b); });
-        } else {
-            qArea.innerHTML = `<div class="srs-question-hint">聽發音，選擇正確的中文翻譯</div><button class="srs-listen-btn" id="srsListenBtn">${ICONS.speaker}</button>`;
+        } else if (q.type === 'listen') {
+            qArea.innerHTML = `<div class="srs-question-hint">聽發音，選擇正確的中文翻譯</div><button class="srs-listen-btn" id="srsListenBtn">${ICONS.speaker}</button><div class="srs-reveal-word hidden" id="srsRevealWord"></div>`;
             document.getElementById('srsListenBtn').onclick = () => speakText(word.en);
             setTimeout(() => speakText(word.en), 300);
             const opts = shuffleArray([word.zh, ...getDistractors(word, srsState.allWords, 'zh')]);
             opts.forEach(o => { const b = document.createElement('button'); b.className = 'srs-option'; b.textContent = o; b.onclick = () => handleSrsAnswer(b, o, word.zh, q.type); oArea.appendChild(b); });
+        } else if (q.type === 'listen3') {
+            const distractorWords = shuffleArray(srsState.allWords.filter(w => w.id !== word.id)).slice(0, 2);
+            const choices = shuffleArray([
+                { en: word.en, isCorrect: true },
+                { en: distractorWords[0]?.en || 'example', isCorrect: false },
+                { en: distractorWords[1]?.en || 'sample', isCorrect: false }
+            ]);
+            const labels = ['A', 'B', 'C'];
+            const correctLabel = labels[choices.findIndex(c => c.isCorrect)];
+
+            qArea.innerHTML = `<div class="srs-question-hint">聽發音，選擇正確的英文單字</div><div class="srs-question-word">${word.zh}</div><div class="srs-reveal-word hidden" id="srsRevealWord"></div><div class="srs-listen3-container">${choices.map((c, i) => `<div class="srs-listen3-item"><button class="srs-listen3-btn" data-label="${labels[i]}" data-word="${c.en.replace(/"/g, '&quot;')}">${ICONS.speaker}</button><div class="srs-listen3-label">${labels[i]}</div></div>`).join('')}</div>`;
+
+            qArea.querySelectorAll('.srs-listen3-btn').forEach(btn => {
+                btn.onclick = () => speakText(btn.dataset.word);
+            });
+
+            async function autoPlaySequence() {
+                for (const c of choices) {
+                    await speakTextPromise(c.en);
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
+            setTimeout(() => autoPlaySequence(), 400);
+
+            oArea.innerHTML = '';
+            labels.forEach((label, i) => {
+                const b = document.createElement('button');
+                b.className = 'srs-option';
+                b.textContent = `${label}`;
+                b.onclick = () => handleSrsAnswer(b, label, correctLabel, q.type);
+                oArea.appendChild(b);
+            });
+
+            srsState._listen3Choices = choices;
+            srsState._listen3CorrectLabel = correctLabel;
         }
     }
 
@@ -1617,10 +1698,20 @@
         srsState.answered = true;
         const word = srsState.questions[srsState.currentQ].word;
         const isCorrect = selected === correct;
-        srsState.results[word.id][type] = isCorrect;
+        const resultType = (type === 'listen3') ? 'listen' : type;
+        srsState.results[word.id][resultType] = isCorrect;
         document.querySelectorAll('.srs-option').forEach(b => { b.classList.add('disabled'); if (b.textContent === correct) b.classList.add('correct'); });
         if (!isCorrect) btnEl.classList.add('wrong');
-        setTimeout(() => { srsState.currentQ++; if (srsState.currentQ >= srsState.questions.length) showSrsResults(); else renderSrsQuestion(); }, isCorrect ? 800 : 1500);
+
+        const revealEl = document.getElementById('srsRevealWord');
+        if ((type === 'listen' || type === 'listen3') && revealEl) {
+            revealEl.textContent = word.en;
+            revealEl.classList.remove('hidden');
+        }
+
+        speakText(word.en);
+        const delay = isCorrect ? 1200 : 2000;
+        setTimeout(() => { srsState.currentQ++; if (srsState.currentQ >= srsState.questions.length) showSrsResults(); else renderSrsQuestion(); }, delay);
     }
 
     async function showSrsResults() {
