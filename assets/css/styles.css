@@ -430,3 +430,37 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
 .sync-choice-btns .btn-use-cloud { background: var(--primary); color: white; }
 .sync-choice-btns .btn-use-local { background: var(--success); color: white; }
 .sync-choice-btns .btn-skip { background: #f0f0f0; color: #333; }
+
+/* Update Banner */
+.update-banner {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+    color: white; padding: 16px 20px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    animation: updateSlideDown 0.35s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+@keyframes updateSlideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+}
+.update-header {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+}
+.update-title { font-weight: 700; font-size: 15px; }
+.update-close {
+    background: none; border: none; color: rgba(255,255,255,0.8);
+    cursor: pointer; padding: 4px; display: flex; align-items: center;
+}
+.update-close:active { color: white; }
+.update-changes {
+    font-size: 13px; margin: 0 0 14px 18px; padding: 0;
+    opacity: 0.92; line-height: 1.6;
+}
+.update-changes li { margin-bottom: 2px; }
+.update-btn {
+    width: 100%; padding: 11px; border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 12px; background: rgba(255,255,255,0.15);
+    color: white; font-size: 15px; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+}
+.update-btn:active { background: rgba(255,255,255,0.3); }

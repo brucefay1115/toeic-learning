@@ -10,6 +10,7 @@ import { renderContent, toggleEnglish, toggleTranslation } from './render.js';
 import { closeModal, renderVocabTab, setSrsTrigger } from './vocab.js';
 import { startSrsReview, closeSrsReview, finishSrsReview, setOnFinish } from './srs.js';
 import { saveToHistory, renderHistory, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
+import { initUpdater } from './updater.js';
 
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
@@ -154,5 +155,6 @@ GENERATE_BTN.onclick = async () => {
             await DriveSync.silentLogin();
             DriveSync.updateUI();
         }
+        initUpdater();
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();
