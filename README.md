@@ -2,6 +2,14 @@
 
 > 零安裝、零月費、AI 驅動的多益學習神器。打開瀏覽器就能練，忙碌的你也能高效備考。
 
+## Demo
+
+[![Demo Video](https://img.youtube.com/vi/zNm1YYRIGrE/0.jpg)](https://youtube.com/shorts/zNm1YYRIGrE)
+
+👆 點擊觀看 Demo 影片
+
+---
+
 ## 👉 立即使用
 
 **[https://brucefay1115.github.io/toeic-learning](https://brucefay1115.github.io/toeic-learning)**
