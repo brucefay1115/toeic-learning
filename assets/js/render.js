@@ -4,7 +4,7 @@ import { state, ICONS, VOICE_OPTIONS, getNextReviewTime } from './state.js';
 import { DB } from './db.js';
 import { speakText } from './utils.js';
 import { addLongPressListener, syncVocabCardBookmark } from './vocab.js';
-import { audioEl, playBtn } from './audioPlayer.js';
+import { audioEl, playBtn, ensureAudioReady } from './audioPlayer.js';
 
 export function renderContent(data, voiceName) {
     document.getElementById('emptyState').classList.add('hidden');
@@ -38,18 +38,25 @@ export function renderContent(data, voiceName) {
         const replayBtn = document.createElement('button');
         replayBtn.className = 'segment-replay-btn';
         replayBtn.innerHTML = ICONS.miniPlay;
-        replayBtn.onclick = (e) => {
+        replayBtn.onclick = async (e) => {
             e.stopPropagation();
-            if (audioEl.duration) {
-                state.playUntilPct = endPct;
-                state.playUntilSegmentIndex = segIndex;
-                audioEl.currentTime = startPct * audioEl.duration;
-                if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
-                    state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
+            const ready = await ensureAudioReady();
+            if (!ready || !audioEl.duration || Number.isNaN(audioEl.duration)) return;
+            state.playUntilPct = endPct;
+            state.playUntilSegmentIndex = segIndex;
+            audioEl.currentTime = startPct * audioEl.duration;
+            if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
+                state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
+            }
+            enDiv.classList.add('active');
+            state.activeSegmentIndex = segIndex;
+            if (audioEl.paused) {
+                try {
+                    await audioEl.play();
+                    playBtn.innerHTML = ICONS.pause;
+                } catch (err) {
+                    console.error('Segment play failed:', err);
                 }
-                enDiv.classList.add('active');
-                state.activeSegmentIndex = segIndex;
-                if (audioEl.paused) { audioEl.play(); playBtn.innerHTML = ICONS.pause; }
             }
         };
         enDiv.appendChild(replayBtn);

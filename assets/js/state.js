@@ -19,6 +19,7 @@ export const state = {
     lastUsedVoice: null,
     currentData: null,
     audioBlobUrl: null,
+    audioReady: false,
     segmentMetadata: [],
     playbackSpeed: 1.0,
     activeSegmentIndex: -1,

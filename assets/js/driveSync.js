@@ -1,7 +1,6 @@
 // Google Drive appDataFolder backup/restore + DB write proxy for auto-sync.
 
 import { DB } from './db.js';
-import { state } from './state.js';
 
 let _callbacks = { renderHistory: null, loadLastSession: null, renderVocabTab: null };
 
@@ -124,13 +123,7 @@ export const DriveSync = {
     },
 
     async exportData() {
-        const [settings, history, savedWords] = await Promise.all([
-            (async () => {
-                const keys = ['gemini_api_key'];
-                const out = {};
-                for (const k of keys) { out[k] = await DB.getSetting(k); }
-                return out;
-            })(),
+        const [history, savedWords] = await Promise.all([
             DB.getHistory(),
             DB.getSavedWords(),
         ]);
@@ -138,7 +131,6 @@ export const DriveSync = {
         return JSON.stringify({
             version: 1,
             exportedAt: Date.now(),
-            settings,
             history: lightHistory,
             savedWords,
         });
@@ -146,12 +138,6 @@ export const DriveSync = {
 
     async importData(jsonStr) {
         const data = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
-        if (data.settings) {
-            if (data.settings.gemini_api_key) {
-                await DB.setSetting('gemini_api_key', data.settings.gemini_api_key);
-                state.apiKey = data.settings.gemini_api_key;
-            }
-        }
         if (data.history) {
             await DB.clearHistory();
             for (const item of data.history) { await DB.addHistory(item); }

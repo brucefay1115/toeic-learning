@@ -49,8 +49,22 @@ function pcmToWav(pcm, sr) {
     return new Blob([b], { type: 'audio/wav' });
 }
 
+function clearActiveSegmentState() {
+    if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
+        state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
+    }
+    state.activeSegmentIndex = -1;
+}
+
 export function setupAudio(base64) {
     if (!base64) return;
+    setPlayerLoading(true);
+    clearPlayUntilState();
+    clearActiveSegmentState();
+    state.audioReady = false;
+    audioEl.pause();
+    progressBar.style.width = '0%';
+
     const bc = atob(base64), bn = new Array(bc.length);
     for (let i = 0; i < bc.length; i++) bn[i] = bc.charCodeAt(i);
     const wavBlob = pcmToWav(new Uint8Array(bn), 24000);
@@ -58,10 +72,45 @@ export function setupAudio(base64) {
     state.audioBlobUrl = URL.createObjectURL(wavBlob);
     audioEl.src = state.audioBlobUrl;
     audioEl.playbackRate = state.playbackSpeed;
-    setPlayerLoading(false);
+
+    const markAudioReady = () => {
+        state.audioReady = true;
+        setPlayerLoading(false);
+    };
+
+    if (audioEl.readyState >= 1 && audioEl.duration && !Number.isNaN(audioEl.duration)) {
+        markAudioReady();
+    } else {
+        audioEl.addEventListener('loadedmetadata', markAudioReady, { once: true });
+        audioEl.addEventListener('error', () => {
+            state.audioReady = false;
+            setPlayerLoading(false);
+        }, { once: true });
+    }
 }
 
-export { audioEl, playBtn };
+export async function ensureAudioReady(timeoutMs = 8000) {
+    if (state.audioReady && audioEl.duration && !Number.isNaN(audioEl.duration)) return true;
+    return new Promise((resolve) => {
+        let done = false;
+        const finish = (ok) => {
+            if (done) return;
+            done = true;
+            audioEl.removeEventListener('loadedmetadata', onReady);
+            resolve(ok);
+        };
+        const onReady = () => {
+            state.audioReady = true;
+            finish(!!audioEl.duration && !Number.isNaN(audioEl.duration));
+        };
+        audioEl.addEventListener('loadedmetadata', onReady, { once: true });
+        setTimeout(() => {
+            finish(state.audioReady && !!audioEl.duration && !Number.isNaN(audioEl.duration));
+        }, timeoutMs);
+    });
+}
+
+export { audioEl, playBtn, clearActiveSegmentState };
 
 /* Event bindings */
 btnSpeed.onclick = () => {
@@ -79,19 +128,55 @@ playBtn.onclick = () => {
     else { audioEl.pause(); playBtn.innerHTML = ICONS.play; }
 };
 
-progressContainer.onclick = (e) => {
+function clearPlayUntilState() {
     state.playUntilPct = null;
     state.playUntilSegmentIndex = null;
+}
+
+function seekFromClientX(clientX) {
+    const d = audioEl.duration;
+    if (!d || Number.isNaN(d)) return;
     const r = progressContainer.getBoundingClientRect();
-    const p = (e.clientX - r.left) / r.width;
-    if (audioEl.duration) { audioEl.currentTime = p * audioEl.duration; }
+    const raw = (clientX - r.left) / r.width;
+    const p = Math.max(0, Math.min(1, raw));
+    audioEl.currentTime = p * d;
+}
+
+let isDraggingProgress = false;
+progressContainer.onpointerdown = (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    isDraggingProgress = true;
+    progressContainer.classList.add('dragging');
+    if (progressContainer.setPointerCapture) progressContainer.setPointerCapture(e.pointerId);
+    clearPlayUntilState();
+    seekFromClientX(e.clientX);
 };
+
+progressContainer.onpointermove = (e) => {
+    if (!isDraggingProgress) return;
+    e.preventDefault();
+    seekFromClientX(e.clientX);
+};
+
+function endProgressDrag(e) {
+    if (!isDraggingProgress) return;
+    isDraggingProgress = false;
+    progressContainer.classList.remove('dragging');
+    if (e && progressContainer.releasePointerCapture) {
+        try { progressContainer.releasePointerCapture(e.pointerId); } catch (_) {}
+    }
+    if (e) seekFromClientX(e.clientX);
+}
+
+progressContainer.onpointerup = endProgressDrag;
+progressContainer.onpointercancel = endProgressDrag;
 
 state.activeSegmentIndex = -1;
 
 audioEl.ontimeupdate = () => {
     const d = audioEl.duration;
-    if (!d) return;
+    if (!d || Number.isNaN(d)) return;
     const p = audioEl.currentTime / d;
     progressBar.style.width = `${p * 100}%`;
 
