@@ -141,7 +141,9 @@ AI 生成文章後自動跳到「學習」頁面：
 
 如果覺得這個工具對你有幫助，歡迎請我喝杯咖啡，支持我持續開發更多功能！
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-yellow)](https://buymeacoffee.com/brucefay110)
+[![Facebook](https://img.shields.io/badge/Facebook-Bruce%20Yang-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/bruce.yang.94)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Chun--Hsiang%20Yang-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/chun-hsiang-yang-b17238165)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/brucefay110)
 
 ---
 
