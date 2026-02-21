@@ -1,8 +1,6 @@
-const CACHE_NAME = 'toeic-tutor-v1.1.3';
+const CACHE_NAME = 'toeic-tutor-v1.1.4';
 
 const STATIC_ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   './assets/css/styles.css',
   './assets/js/main.js',
@@ -39,10 +37,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isNavigationRequest(request) {
+  if (request.mode === 'navigate') return true;
+  const accept = request.headers.get('Accept') || '';
+  return accept.includes('text/html');
+}
+
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
-  // Never cache: API calls, version.json, Google sign-in
   if (
     url.includes('generativelanguage.googleapis.com') ||
     url.includes('version.json') ||
@@ -50,6 +53,19 @@ self.addEventListener('fetch', (event) => {
     url.includes('googleapis.com/drive') ||
     url.includes('googleapis.com/oauth')
   ) {
+    return;
+  }
+
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 

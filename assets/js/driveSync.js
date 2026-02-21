@@ -410,7 +410,7 @@ const _origDB = {};
     _origDB[method] = DB[method].bind(DB);
     DB[method] = async function (...args) {
         const result = await _origDB[method](...args);
-        if (method === 'setSetting' && ['cloud_sync_enabled', 'cloud_user_email', 'cloud_user_name', 'cloud_last_sync'].includes(args[0])) {
+        if (method === 'setSetting' && ['cloud_sync_enabled', 'cloud_user_email', 'cloud_user_name', 'cloud_last_sync', 'gemini_api_key'].includes(args[0])) {
             return result;
         }
         if (DriveSync.isLoggedIn()) {

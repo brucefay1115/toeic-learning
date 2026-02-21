@@ -1,62 +1,79 @@
-// PWA Service Worker registration, update detection, and update-prompt UI.
+// PWA Service Worker registration, automatic update, and post-update modal.
 
-async function fetchChangelog() {
-  try {
-    const res = await fetch('./version.json?t=' + Date.now());
-    if (!res.ok) throw new Error(res.status);
-    return await res.json();
-  } catch {
-    return { version: '?', changes: ['有新版本可用'] };
-  }
-}
+const UPDATE_INFO_KEY = 'just_updated_info';
 
-function showUpdateBanner(info, onUpdate) {
-  if (document.getElementById('updateBanner')) return;
+function showUpdateModal(info) {
+  if (document.getElementById('updateOverlay')) return;
 
-  const banner = document.createElement('div');
-  banner.id = 'updateBanner';
-  banner.className = 'update-banner';
-  banner.innerHTML = `
-    <div class="update-header">
-      <span class="update-title">新版本 v${info.version} 可用！</span>
-      <button class="update-close" id="btnDismissUpdate">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-      </button>
+  const overlay = document.createElement('div');
+  overlay.id = 'updateOverlay';
+  overlay.className = 'update-overlay';
+
+  overlay.innerHTML = `
+    <div class="update-modal">
+      <div class="update-modal-icon">✓</div>
+      <h2 class="update-modal-title">已更新到版本 v${info.version}</h2>
+      <ul class="update-modal-changes">
+        ${info.changes.map((c) => `<li>${c}</li>`).join('')}
+      </ul>
+      <p class="update-modal-notice">請完全關閉此 WebApp 後重新開啟，以確保更新生效</p>
+      <button class="update-modal-btn" id="btnUpdateAck">我知道了</button>
     </div>
-    <ul class="update-changes">
-      ${info.changes.map((c) => `<li>${c}</li>`).join('')}
-    </ul>
-    <button class="update-btn" id="btnDoUpdate">立即更新</button>
   `;
-  document.body.prepend(banner);
 
-  document.getElementById('btnDoUpdate').onclick = onUpdate;
-  document.getElementById('btnDismissUpdate').onclick = () => banner.remove();
-}
+  document.body.appendChild(overlay);
 
-function promptUpdate(newWorker) {
-  fetchChangelog().then((info) => {
-    showUpdateBanner(info, () => {
-      const btn = document.getElementById('btnDoUpdate');
-      btn.disabled = true;
-      btn.textContent = '更新中…';
-      newWorker.postMessage('skipWaiting');
-
-      setTimeout(() => {
-        btn.textContent = '請關閉 App 後重新開啟以完成更新';
-      }, 3000);
-    });
+  document.getElementById('btnUpdateAck').addEventListener('click', () => {
+    sessionStorage.removeItem(UPDATE_INFO_KEY);
+    overlay.remove();
   });
 }
 
+function checkPostUpdateModal() {
+  const raw = sessionStorage.getItem(UPDATE_INFO_KEY);
+  if (!raw) return;
+  try {
+    const info = JSON.parse(raw);
+    if (info && info.version) showUpdateModal(info);
+  } catch { /* ignore corrupt data */ }
+}
+
+function autoActivate(worker) {
+  if (worker) worker.postMessage('skipWaiting');
+}
+
 export async function initUpdater() {
+  checkPostUpdateModal();
+
   if (!('serviceWorker' in navigator)) return;
+
+  let refreshing = false;
+
+  navigator.serviceWorker.addEventListener('controllerchange', async () => {
+    if (refreshing) return;
+    refreshing = true;
+
+    try {
+      const res = await fetch('./version.json?t=' + Date.now());
+      if (res.ok) {
+        const info = await res.json();
+        sessionStorage.setItem(UPDATE_INFO_KEY, JSON.stringify({
+          version: info.version,
+          changes: info.changes || [],
+        }));
+      }
+    } catch { /* proceed with reload anyway */ }
+
+    window.location.reload();
+  });
 
   try {
     const reg = await navigator.serviceWorker.register('./sw.js');
 
+    reg.update().catch(() => {});
+
     if (reg.waiting) {
-      promptUpdate(reg.waiting);
+      autoActivate(reg.waiting);
     }
 
     reg.addEventListener('updatefound', () => {
@@ -65,14 +82,23 @@ export async function initUpdater() {
 
       installing.addEventListener('statechange', () => {
         if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-          promptUpdate(installing);
+          autoActivate(installing);
         }
       });
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload();
+    const triggerUpdate = () => {
+      reg.update().catch(() => {});
+    };
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') triggerUpdate();
     });
+
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) triggerUpdate();
+    });
+
   } catch (err) {
     console.warn('SW registration failed:', err);
   }
