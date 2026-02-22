@@ -1,6 +1,6 @@
 // Word modal (long-press lookup), save-to-vocab, renderVocabTab.
 
-import { state, ICONS, SRS_MIN_WORDS, SRS_MAX_WORDS, getNextReviewTime } from './state.js';
+import { state, ICONS, SRS_INTERVALS, SRS_MIN_WORDS, SRS_MAX_WORDS, getNextReviewTime } from './state.js';
 import { DB } from './db.js';
 import { fetchWordDetails } from './apiGemini.js';
 import { speakText } from './utils.js';
@@ -42,19 +42,37 @@ function showWordModal(word) {
         let vocabItem = null;
         if (state.currentData && state.currentData.vocabulary)
             vocabItem = state.currentData.vocabulary.find(v => v.word.toLowerCase() === word.toLowerCase());
-        if (!vocabItem) vocabItem = await DB.getWord(word);
+        if (vocabItem) {
+            DB.setWord(word, vocabItem);
+        } else {
+            vocabItem = await DB.getWord(word);
+        }
+        if (!vocabItem) {
+            const saved = await DB.getSavedWord(word.toLowerCase());
+            if (saved) vocabItem = { word: saved.en, pos: saved.pos, ipa: saved.ipa, def: saved.zh, ex: saved.ex, ex_zh: saved.ex_zh };
+        }
 
         document.getElementById('wmWord').innerText = word;
         document.getElementById('btnWordAudio').onclick = () => speakText(word);
         actionArea.innerHTML = '';
 
         if (vocabItem) {
-            document.getElementById('wmPos').innerText = vocabItem.pos;
-            document.getElementById('wmIpa').innerText = vocabItem.ipa;
-            document.getElementById('wmDef').innerText = vocabItem.def;
-            document.getElementById('wmExText').innerText = vocabItem.ex;
-            document.getElementById('wmExSpeakBtn').onclick = () => speakText(vocabItem.ex);
-            document.getElementById('wmEx').classList.remove('hidden');
+            const existingSaved = await DB.getSavedWord(word.toLowerCase());
+            if (existingSaved && vocabItem.ex && !existingSaved.ex) {
+                existingSaved.ex = vocabItem.ex;
+                existingSaved.ex_zh = vocabItem.ex_zh || '';
+                await DB.addSavedWord(existingSaved);
+            }
+            document.getElementById('wmPos').innerText = vocabItem.pos || '';
+            document.getElementById('wmIpa').innerText = vocabItem.ipa || '';
+            document.getElementById('wmDef').innerText = vocabItem.def || '';
+            if (vocabItem.ex) {
+                document.getElementById('wmExText').innerText = vocabItem.ex;
+                document.getElementById('wmExSpeakBtn').onclick = () => speakText(vocabItem.ex);
+                document.getElementById('wmEx').classList.remove('hidden');
+            } else {
+                document.getElementById('wmEx').classList.add('hidden');
+            }
             const exZhEl = document.getElementById('wmExZh');
             if (vocabItem.ex_zh) { exZhEl.textContent = vocabItem.ex_zh; exZhEl.classList.remove('hidden'); }
             else { exZhEl.classList.add('hidden'); }
@@ -83,6 +101,12 @@ function showWordModal(word) {
                     const exZhEl = document.getElementById('wmExZh');
                     if (info.ex_zh) { exZhEl.textContent = info.ex_zh; exZhEl.classList.remove('hidden'); }
                     else { exZhEl.classList.add('hidden'); }
+                    const existingSaved = await DB.getSavedWord(word.toLowerCase());
+                    if (existingSaved && info.ex && !existingSaved.ex) {
+                        existingSaved.ex = info.ex;
+                        existingSaved.ex_zh = info.ex_zh || '';
+                        await DB.addSavedWord(existingSaved);
+                    }
                     genBtn.remove();
                     await renderSaveButton(actionArea, word, info);
                 } catch (e) { genBtn.innerText = '生成失敗，請重試'; genBtn.disabled = false; alert(e.message); }
@@ -105,7 +129,7 @@ async function renderSaveButton(container, word, vocabItem) {
             setUnsaved();
             syncVocabCardBookmark(word, false);
         } else {
-            await DB.addSavedWord({ id: word.toLowerCase(), en: vocabItem.word || word, zh: vocabItem.def, pos: vocabItem.pos, ipa: vocabItem.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
+            await DB.addSavedWord({ id: word.toLowerCase(), en: vocabItem.word || word, zh: vocabItem.def, pos: vocabItem.pos, ipa: vocabItem.ipa, ex: vocabItem.ex || '', ex_zh: vocabItem.ex_zh || '', createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
             setSaved();
             syncVocabCardBookmark(word, true);
         }
@@ -154,17 +178,34 @@ export async function renderVocabTab() {
         entryEl.appendChild(card);
     }
 
+    const lv5Words = words.filter(w => w.level >= SRS_INTERVALS.length - 1);
+    if (lv5Words.length > 0) {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'review-entry-card';
+        clearBtn.style.background = 'var(--success)';
+        clearBtn.innerHTML = `<h3>清除已熟練單字</h3><p>${lv5Words.length} 個已達 Lv.5，點擊一鍵移除</p>`;
+        clearBtn.onclick = async () => {
+            if (!confirm(`確定移除 ${lv5Words.length} 個 Lv.5 單字？此操作無法復原。`)) return;
+            for (const w of lv5Words) {
+                await DB.deleteSavedWord(w.id);
+                syncVocabCardBookmark(w.en, false);
+            }
+            renderVocabTab();
+        };
+        entryEl.appendChild(clearBtn);
+    }
+
     const listEl = document.getElementById('savedWordsList');
     listEl.innerHTML = '';
     if (words.length === 0) {
         listEl.innerHTML = '<p style="text-align:center; color:var(--text-sub); padding: 30px 0;">尚無儲存單字<br><span style="font-size:13px;">長按文章中的單字，或按核心單字旁的書籤即可儲存</span></p>';
         return;
     }
-    words.sort((a, b) => b.createdAt - a.createdAt).forEach(w => {
+    words.sort((a, b) => a.level - b.level || a.nextReview - b.nextReview).forEach(w => {
         const card = document.createElement('div'); card.className = 'saved-word-card';
         const isOverdue = w.nextReview <= Date.now();
         const dateStr = isOverdue ? '可複習' : new Date(w.nextReview).toLocaleDateString();
-        card.innerHTML = `<div class="saved-word-info"><div class="saved-word-top"><span class="saved-word-en">${w.en}</span><span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span></div><div class="saved-word-zh">${w.zh}</div><div class="saved-word-next">${isOverdue ? '⏰ ' : ''}下次複習：${dateStr}</div></div><div class="saved-word-actions"><button class="saved-word-speak">${ICONS.speaker}</button><button class="saved-word-delete">${ICONS.close}</button></div>`;
+        card.innerHTML = `<div class="saved-word-info"><div class="saved-word-top"><span class="saved-word-en">${w.en}</span>${w.pos ? `<span class="vocab-pos">${w.pos}</span>` : ''}<span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span></div><div class="saved-word-zh">${w.zh}</div><div class="saved-word-next">${isOverdue ? '⏰ ' : ''}下次複習：${dateStr}</div></div><div class="saved-word-actions"><button class="saved-word-speak">${ICONS.speaker}</button><button class="saved-word-delete">${ICONS.close}</button></div>`;
         card.querySelector('.saved-word-speak').onclick = () => speakText(w.en);
         card.querySelector('.saved-word-delete').onclick = async () => {
             if (confirm(`確定刪除「${w.en}」？`)) {

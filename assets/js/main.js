@@ -161,7 +161,19 @@ GENERATE_BTN.onclick = async () => {
 
         fetch('./version.json?t=' + Date.now())
           .then(r => r.ok ? r.json() : null)
-          .then(d => { if (d?.version) document.getElementById('appVersion').textContent = `v${d.version}`; })
-          .catch(() => {});
+          .then(d => {
+            if (d?.version) {
+              const text = `v${d.version}`;
+              document.getElementById('appVersion').textContent = text;
+              localStorage.setItem('app_version_display', text);
+            } else {
+              document.getElementById('appVersion').textContent =
+                localStorage.getItem('app_version_display') || '';
+            }
+          })
+          .catch(() => {
+            document.getElementById('appVersion').textContent =
+              localStorage.getItem('app_version_display') || '';
+          });
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();

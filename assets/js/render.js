@@ -112,7 +112,7 @@ export function renderContent(data, voiceName) {
                 saveBtn.innerHTML = ICONS.bookmark;
                 saveBtn.classList.remove('saved');
             } else {
-                await DB.addSavedWord({ id: v.word.toLowerCase(), en: v.word, zh: v.def, pos: v.pos, ipa: v.ipa, createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
+                await DB.addSavedWord({ id: v.word.toLowerCase(), en: v.word, zh: v.def, pos: v.pos, ipa: v.ipa, ex: v.ex || '', ex_zh: v.ex_zh || '', createdAt: Date.now(), nextReview: getNextReviewTime(0), level: 0 });
                 saveBtn.innerHTML = ICONS.bookmarkFill;
                 saveBtn.classList.add('saved');
             }
@@ -169,5 +169,5 @@ export function updateTranslationVisibility() {
 }
 
 export function updateEnglishVisibility() {
-    document.querySelectorAll('.segment-en').forEach(el => el.classList.toggle('hidden', !state.showEnglish));
+    document.querySelectorAll('.segment-en').forEach(el => el.classList.toggle('en-hidden', !state.showEnglish));
 }
