@@ -155,6 +155,13 @@ AI 生成文章後自動跳到「學習」頁面：
 
 ---
 
+## 給開發者的提醒
+
+- 本網站使用 **Google Analytics (GA)** 蒐集匿名流量數據，以協助了解使用者行為。若你 fork 或重新部署本專案，請記得**替換或移除** `index.html` 中的 GA 追蹤碼。
+- 本專案使用 **Google Drive API** 進行登入與雲端備份功能，若你要自行部署，請記得在 [Google Cloud Console](https://console.cloud.google.com/) 建立自己的 GCP 專案並替換 OAuth Client ID。
+
+---
+
 ## 授權
 
 PolyForm Noncommercial 1.0.0

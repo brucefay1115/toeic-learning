@@ -533,6 +533,7 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     background: linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%);
     border: 1.5px solid #FFD54F;
 }
+.about-link-icon.email { background: #E3F2FD; color: #1565C0; }
 .about-version {
     font-size: 13px; color: var(--text-sub); margin-top: 32px; opacity: 0.6;
 }
