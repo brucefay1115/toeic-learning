@@ -67,6 +67,7 @@ VOICE_OPTIONS.forEach(opt => {
 
 /* ── Settings / API Key modal ── */
 const keyModal = document.getElementById('keyModal');
+const APP_VERSION_CACHE_KEY = 'app_version_display';
 
 document.getElementById('btnSettings').onclick = () => {
     document.getElementById('apiKeyInput').value = state.apiKey;
@@ -79,6 +80,39 @@ function saveApiKey() {
     const v = document.getElementById('apiKeyInput').value.trim();
     if (v) { state.apiKey = v; DB.setSetting('gemini_api_key', v); keyModal.classList.remove('active'); }
     else { alert('請輸入有效的 API Key'); }
+}
+
+function safeLocalGet(key) {
+    try { return localStorage.getItem(key); } catch { return null; }
+}
+
+function safeLocalSet(key, value) {
+    try { localStorage.setItem(key, value); } catch { /* no-op */ }
+}
+
+function setAppVersionText(text) {
+    const el = document.getElementById('appVersion');
+    if (el) el.textContent = text;
+}
+
+function initAppVersionDisplay() {
+    const cached = safeLocalGet(APP_VERSION_CACHE_KEY);
+    setAppVersionText(cached || 'v--');
+
+    fetch('./version.json?t=' + Date.now())
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.version) {
+            const text = `v${d.version}`;
+            setAppVersionText(text);
+            safeLocalSet(APP_VERSION_CACHE_KEY, text);
+        } else if (cached) {
+            setAppVersionText(cached);
+        }
+      })
+      .catch(() => {
+        if (cached) setAppVersionText(cached);
+      });
 }
 
 /* ── Static HTML event bindings (replacing inline onclick) ── */
@@ -139,6 +173,8 @@ GENERATE_BTN.onclick = async () => {
 
 /* ── App Init ── */
 (async function initApp() {
+    initAppVersionDisplay();
+
     try {
         await DB.init();
         let apiKey = await DB.getSetting('gemini_api_key');
@@ -158,22 +194,5 @@ GENERATE_BTN.onclick = async () => {
         }
         initUpdater();
         initInstallPrompt();
-
-        fetch('./version.json?t=' + Date.now())
-          .then(r => r.ok ? r.json() : null)
-          .then(d => {
-            if (d?.version) {
-              const text = `v${d.version}`;
-              document.getElementById('appVersion').textContent = text;
-              localStorage.setItem('app_version_display', text);
-            } else {
-              document.getElementById('appVersion').textContent =
-                localStorage.getItem('app_version_display') || '';
-            }
-          })
-          .catch(() => {
-            document.getElementById('appVersion').textContent =
-              localStorage.getItem('app_version_display') || '';
-          });
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();
