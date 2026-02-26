@@ -156,9 +156,78 @@ async function showSrsResults() {
         let cls = 'same', txt = `Lv.${wr.oldLevel}`;
         if (diff > 0) { cls = 'up'; txt = `Lv.${wr.oldLevel} → ${wr.newLevel}`; }
         else if (diff < 0) { cls = 'down'; txt = `Lv.${wr.oldLevel} → ${wr.newLevel}`; }
-        oArea.innerHTML += `<div class="srs-result-item"><div class="srs-result-word">${wr.word.en}<small>${wr.word.zh} · 下次複習 ${wr.nextDate}</small></div><div class="srs-result-status ${cls}">${wr.cc}/3 ${txt}</div></div>`;
+
+        const item = document.createElement('div');
+        item.className = 'srs-result-item';
+
+        const main = document.createElement('div');
+        main.className = 'srs-result-main';
+
+        const wordRow = document.createElement('div');
+        wordRow.className = 'srs-result-word-row';
+
+        const wordEl = document.createElement('div');
+        wordEl.className = 'srs-result-word';
+        wordEl.textContent = wr.word.en;
+
+        const speakBtn = document.createElement('button');
+        speakBtn.type = 'button';
+        speakBtn.className = 'mini-speaker srs-result-speaker';
+        speakBtn.innerHTML = ICONS.speaker;
+        speakBtn.dataset.speak = wr.word.en;
+
+        const meta = document.createElement('small');
+        meta.className = 'srs-result-meta';
+        meta.textContent = `${wr.word.zh} · 下次複習 ${wr.nextDate}`;
+
+        const exRow = document.createElement('div');
+        exRow.className = 'srs-result-ex-row';
+
+        const ex = document.createElement('div');
+        ex.className = 'srs-result-ex';
+        const exText = wr.word.ex?.trim() || '';
+        ex.textContent = exText || '（無例句）';
+
+        if (exText) {
+            const exSpeakBtn = document.createElement('button');
+            exSpeakBtn.type = 'button';
+            exSpeakBtn.className = 'mini-speaker srs-result-speaker srs-result-ex-speaker';
+            exSpeakBtn.innerHTML = ICONS.speaker;
+            exSpeakBtn.dataset.speak = exText;
+            exRow.appendChild(exSpeakBtn);
+        }
+
+        const exZh = document.createElement('div');
+        exZh.className = 'srs-result-ex-zh';
+        exZh.textContent = wr.word.ex_zh?.trim() || '（無中文例句）';
+
+        wordRow.appendChild(wordEl);
+        wordRow.appendChild(speakBtn);
+        main.appendChild(wordRow);
+        main.appendChild(meta);
+        exRow.prepend(ex);
+        main.appendChild(exRow);
+        main.appendChild(exZh);
+
+        const status = document.createElement('div');
+        status.className = `srs-result-status ${cls}`;
+        status.textContent = `${wr.cc}/3 ${txt}`;
+
+        item.appendChild(main);
+        item.appendChild(status);
+        oArea.appendChild(item);
     });
-    oArea.innerHTML += `<button class="srs-done-btn" onclick="finishSrsReview()">完成</button>`;
+
+    oArea.querySelectorAll('.srs-result-speaker').forEach(btn => {
+        btn.onclick = () => speakText(btn.dataset.speak || '');
+    });
+
+    const doneBtn = document.createElement('button');
+    doneBtn.type = 'button';
+    doneBtn.className = 'srs-done-btn';
+    doneBtn.textContent = '完成';
+    doneBtn.onclick = () => finishSrsReview();
+    oArea.appendChild(doneBtn);
 }
 
 export function finishSrsReview() {
