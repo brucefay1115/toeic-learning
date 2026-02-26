@@ -1,6 +1,6 @@
 // App entry point: initialisation, tab switching, event binding, module wiring.
 
-import { state, VOICE_OPTIONS, VOICE_NAMES } from './state.js';
+import { state, VOICE_OPTIONS, VOICE_NAMES, ICONS } from './state.js';
 import { speakText } from './utils.js';
 import { DB } from './db.js';
 import { fetchGeminiText, fetchGeminiTTS, fetchExamQuestions, fetchExamWrongAnswerExplanations } from './apiGemini.js';
@@ -51,6 +51,8 @@ function switchTab(tabName) {
     ['tabLearn', 'tabPractice', 'tabVocab', 'tabHistory', 'tabAbout'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+    if (tabName === 'practice' && state.practiceMode === 'speaking') resetSpeakingPracticeView();
+    if (tabName === 'practice' && state.practiceMode === 'exam') resetExamPracticeView();
     if (tabName === 'history') renderHistory();
     if (tabName === 'vocab') renderVocabTab();
     const pb = document.getElementById('playerBar');
@@ -70,6 +72,8 @@ function setPracticeMode(mode) {
     document.getElementById('practicePanelArticle').classList.toggle('hidden', mode !== 'article');
     document.getElementById('practicePanelSpeaking').classList.toggle('hidden', mode !== 'speaking');
     document.getElementById('practicePanelExam').classList.toggle('hidden', mode !== 'exam');
+    if (mode === 'speaking') resetSpeakingPracticeView();
+    if (mode === 'exam') resetExamPracticeView();
 }
 
 document.querySelectorAll('.practice-mode-btn').forEach(btn => {
@@ -303,8 +307,12 @@ document.getElementById('btnCloudLogout').onclick = () => DriveSync.logout();
 document.querySelector('#srsOverlay .srs-close-btn').onclick = () => closeSrsReview();
 
 /* ── Speaking mode UI ── */
-function showSpeakingConfigView() {
+function resetSpeakingPracticeView() {
     document.getElementById('speakingConfigView').classList.remove('hidden');
+}
+
+function showSpeakingConfigView() {
+    resetSpeakingPracticeView();
     setLearnRuntimeMode('article');
     switchTab('practice');
 }
@@ -428,8 +436,12 @@ const EXAM_CONTENT = document.getElementById('examContent');
 const EXAM_ACTIONS = document.getElementById('examActions');
 const EXAM_CONFIG_VIEW = document.getElementById('examConfigView');
 
-function showExamConfigView() {
+function resetExamPracticeView() {
     EXAM_CONFIG_VIEW.classList.remove('hidden');
+}
+
+function showExamConfigView() {
+    resetExamPracticeView();
     setLearnRuntimeMode('article');
     switchTab('practice');
 }
@@ -451,12 +463,14 @@ function renderExamActions(stage = 'answering') {
         return;
     }
     if (stage === 'graded') {
+        const alreadyHasExplanation = state.examState.explanationRecordSaved
+            || (Array.isArray(state.examState.explanations) && state.examState.explanations.length > 0);
         const explainBtn = document.createElement('button');
         explainBtn.className = 'generate-btn';
-        explainBtn.textContent = '生成錯題解說';
+        explainBtn.textContent = alreadyHasExplanation ? '錯題解說已生成' : '生成錯題解說';
         explainBtn.dataset.action = 'explain';
         explainBtn.onclick = handleExplainWrongAnswers;
-        if (!state.examState.result?.wrongCount) explainBtn.disabled = true;
+        if (!state.examState.result?.wrongCount || alreadyHasExplanation) explainBtn.disabled = true;
         EXAM_ACTIONS.appendChild(explainBtn);
     }
 }
@@ -491,9 +505,13 @@ function renderExamResult() {
     `;
     const wrongHtml = result.wrongItems.map((item) => {
         const explanation = state.examState.explanations?.find(x => x.id === item.id);
+        const hasCachedAudio = !!state.examState.listeningAudioByQuestion?.[item.id];
+        const reviewAudioBtn = hasCachedAudio
+            ? `<button class="mini-speaker exam-review-audio-btn" data-action="review-listen" data-id="${item.id}" title="播放已保存語音">${ICONS.speaker}</button>`
+            : '';
         return `
             <div class="exam-wrong-item">
-                <div><strong>${item.section}</strong> - ${item.question}</div>
+                <div><strong>${item.section}</strong> - ${item.question}${reviewAudioBtn}</div>
                 <div>你的答案：${item.selected || '未作答'} / 正確答案：${item.answer}</div>
                 ${explanation ? `<div>為何錯：${explanation.whyWrong}</div><div>關鍵：${explanation.keyPoint}</div><div>陷阱：${explanation.trap}</div>` : ''}
             </div>
@@ -567,6 +585,21 @@ EXAM_CONTENT.onclick = async (e) => {
     if (!btn) return;
     const action = btn.dataset.action;
     const id = btn.dataset.id;
+    if (action === 'review-listen') {
+        const qForReview = state.examState.questions.find(item => item.id === id);
+        const cachedAudio = state.examState.listeningAudioByQuestion[id] || '';
+        if (!qForReview || !cachedAudio) return;
+        const finishLoading = setButtonLoading(btn, '播放中...', 'loader loader-sm');
+        try {
+            await playListeningQuestion(qForReview, state.examState.voiceName || 'Kore', cachedAudio);
+        } catch (error) {
+            console.error(error);
+            alert('播放語音失敗: ' + error.message);
+        } finally {
+            finishLoading();
+        }
+        return;
+    }
     const q = state.examState.questions.find(item => item.id === id);
     if (!q || state.examState.result) return;
     if (action === 'answer') {
