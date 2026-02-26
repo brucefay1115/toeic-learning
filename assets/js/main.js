@@ -18,7 +18,7 @@ import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
 setOnFinish(renderVocabTab);
-setHistoryDeps({ switchTab });
+setHistoryDeps({ switchTab, openExamRecord: openExamRecordFromHistory, openSpeakingRecord: openSpeakingRecordFromHistory });
 DriveSync.setCallbacks({ renderHistory, loadLastSession, renderVocabTab });
 
 /* ── Expose minimal globals needed by dynamic innerHTML onclick ── */
@@ -154,6 +154,117 @@ function setButtonLoading(button, loadingText, spinnerClass = 'loader') {
     };
 }
 
+let activeSpeakingRecord = null;
+
+function createRecordId(prefix) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function cloneValue(value) {
+    try {
+        return JSON.parse(JSON.stringify(value));
+    } catch {
+        return value;
+    }
+}
+
+function createExamSnapshot(resultOverride = state.examState.result) {
+    return {
+        questions: cloneValue(state.examState.questions),
+        answers: cloneValue(state.examState.answers),
+        result: cloneValue(resultOverride),
+        listeningAudioByQuestion: cloneValue(state.examState.listeningAudioByQuestion || {}),
+        voiceName: state.examState.voiceName || 'Kore'
+    };
+}
+
+function ensureExamRecordIdentity() {
+    if (!state.examState.attemptId) state.examState.attemptId = createExamAttemptId();
+    if (!state.examState.recordId) state.examState.recordId = createRecordId('exam');
+    if (!state.examState.recordCreatedAt) state.examState.recordCreatedAt = Date.now();
+}
+
+async function persistExamRecord(recordStage, options = {}) {
+    const { includeSummary = false, explanationsOverride = state.examState.explanations } = options;
+    ensureExamRecordIdentity();
+    const result = state.examState.result;
+    const examSummary = includeSummary && result ? buildExamSummary(result) : null;
+    const titleSuffixMap = {
+        exam_generated: '進行中',
+        exam_submitted: '交卷紀錄',
+        explanations_generated: '解說紀錄'
+    };
+    await savePracticeRecord({
+        id: state.examState.recordId,
+        createdAt: state.examState.recordCreatedAt || Date.now(),
+        type: 'exam',
+        recordStage,
+        attemptId: state.examState.attemptId,
+        title: `模擬考試（TOEIC ${state.targetScore}）- ${titleSuffixMap[recordStage] || '紀錄'}`,
+        score: state.targetScore,
+        examSummary,
+        examSnapshot: createExamSnapshot(),
+        explanations: explanationsOverride
+    });
+}
+
+async function persistSpeakingRecord() {
+    if (!activeSpeakingRecord?.id) return;
+    await savePracticeRecord({
+        ...activeSpeakingRecord,
+        createdAt: activeSpeakingRecord.createdAt || Date.now(),
+        recordStage: activeSpeakingRecord.recordStage || 'speaking_in_progress'
+    });
+}
+
+function setExamStateFromRecord(item) {
+    const snapshot = item.examSnapshot || {};
+    state.targetScore = Number(item.score) || state.targetScore;
+    state.examState.questions = Array.isArray(snapshot.questions) ? snapshot.questions : [];
+    state.examState.answers = snapshot.answers || {};
+    state.examState.result = snapshot.result || null;
+    state.examState.explanations = item.explanations || null;
+    state.examState.attemptId = item.attemptId || null;
+    state.examState.recordId = item.id || null;
+    state.examState.recordCreatedAt = item.createdAt || null;
+    state.examState.voiceName = snapshot.voiceName || state.lastUsedVoice || 'Kore';
+    state.examState.listeningAudioByQuestion = snapshot.listeningAudioByQuestion || {};
+    state.examState.explanationRecordSaved = item.recordStage === 'explanations_generated';
+}
+
+function openExamRecordFromHistory(item) {
+    setExamStateFromRecord(item);
+    document.querySelectorAll('#scoreSelector .score-chip, #examScoreSelector .score-chip').forEach(c => {
+        c.classList.toggle('active', Number(c.innerText) === state.targetScore);
+    });
+    EXAM_META.textContent = `目標分數 TOEIC ${state.targetScore} ・ 共 ${state.examState.questions.length} 題`;
+    renderExamQuestions(EXAM_CONTENT, state.examState.questions, state.examState.answers);
+    if (state.examState.result) {
+        renderExamResult();
+        renderExamActions('graded');
+    } else {
+        renderExamActions('answering');
+    }
+    setPracticeMode('exam');
+    showExamSessionView();
+}
+
+function openSpeakingRecordFromHistory(item) {
+    const logs = Array.isArray(item.logs) ? item.logs : [];
+    setPracticeMode('speaking');
+    showSpeakingSessionView();
+    document.getElementById('btnStopSpeaking').disabled = true;
+    document.getElementById('speakingStatus').textContent = item.finalStatus || '口說紀錄回看';
+    const logEl = document.getElementById('speakingLog');
+    logEl.innerHTML = '';
+    logs.forEach((entry) => {
+        const row = document.createElement('div');
+        row.className = 'speaking-log-item';
+        row.innerHTML = `<span class="speaking-log-role">${String(entry.role || 'log').toUpperCase()}</span>${entry.text || ''}`;
+        logEl.prepend(row);
+    });
+}
+
 function initAppVersionDisplay() {
     const cached = safeLocalGet(APP_VERSION_CACHE_KEY);
     setAppVersionText(cached || 'v--');
@@ -210,10 +321,30 @@ function appendSpeakingLog(role, text) {
     row.className = 'speaking-log-item';
     row.innerHTML = `<span class="speaking-log-role">${role.toUpperCase()}</span>${text}`;
     logEl.prepend(row);
+    if (activeSpeakingRecord) {
+        activeSpeakingRecord.logs.push({
+            ts: Date.now(),
+            role: String(role || '').toLowerCase(),
+            text
+        });
+        persistSpeakingRecord().catch((e) => console.error('Persist speaking log failed:', e));
+    }
 }
 
 function setSpeakingStatus(text) {
     document.getElementById('speakingStatus').textContent = text;
+    if (activeSpeakingRecord) {
+        activeSpeakingRecord.finalStatus = text;
+    }
+}
+
+async function finalizeSpeakingRecord(finalStatus = '口說已停止') {
+    if (!activeSpeakingRecord) return;
+    activeSpeakingRecord.endedAt = Date.now();
+    activeSpeakingRecord.durationMs = Math.max(0, activeSpeakingRecord.endedAt - activeSpeakingRecord.startedAt);
+    activeSpeakingRecord.recordStage = 'speaking_completed';
+    activeSpeakingRecord.finalStatus = finalStatus;
+    await persistSpeakingRecord();
 }
 
 document.querySelectorAll('#speakingPresetGroup .topic-chip').forEach(chip => {
@@ -231,6 +362,22 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
         const topic = custom || state.speakingState.selectedTopic;
         if (!topic) return alert('請先輸入或選擇主題');
         document.getElementById('speakingLog').innerHTML = '';
+        activeSpeakingRecord = {
+            id: createRecordId('speaking'),
+            createdAt: Date.now(),
+            type: 'speaking',
+            date: new Date().toLocaleDateString(),
+            title: `口說對話：${topic}`,
+            score: state.targetScore,
+            topic,
+            startedAt: Date.now(),
+            endedAt: null,
+            durationMs: 0,
+            finalStatus: '正在初始化對話...',
+            recordStage: 'speaking_in_progress',
+            logs: []
+        };
+        await persistSpeakingRecord();
         showSpeakingSessionView();
         setSpeakingStatus('正在初始化對話...');
         document.getElementById('btnStartSpeaking').disabled = true;
@@ -245,6 +392,10 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
     } catch (error) {
         console.error(error);
         setSpeakingStatus('啟動失敗: ' + error.message);
+        if (activeSpeakingRecord) {
+            await finalizeSpeakingRecord('口說啟動失敗');
+            activeSpeakingRecord = null;
+        }
         document.getElementById('btnStartSpeaking').disabled = false;
         document.getElementById('btnStopSpeaking').disabled = true;
         showSpeakingConfigView();
@@ -253,6 +404,8 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
 
 document.getElementById('btnStopSpeaking').onclick = async () => {
     await stopSpeakingSession();
+    await finalizeSpeakingRecord('口說已停止');
+    activeSpeakingRecord = null;
     document.getElementById('btnStartSpeaking').disabled = false;
     document.getElementById('btnStopSpeaking').disabled = true;
     setSpeakingStatus('口說已停止');
@@ -260,6 +413,8 @@ document.getElementById('btnStopSpeaking').onclick = async () => {
 document.getElementById('btnStopSpeaking').disabled = true;
 document.getElementById('btnSpeakingBack').onclick = async () => {
     await stopSpeakingSession();
+    await finalizeSpeakingRecord('已返回主題設定');
+    activeSpeakingRecord = null;
     document.getElementById('btnStartSpeaking').disabled = false;
     document.getElementById('btnStopSpeaking').disabled = true;
     showSpeakingConfigView();
@@ -320,11 +475,7 @@ function buildExamSummary(result) {
 }
 
 function buildExamSnapshot(result) {
-    return {
-        questions: state.examState.questions,
-        answers: state.examState.answers,
-        result
-    };
+    return createExamSnapshot(result);
 }
 
 function renderExamResult() {
@@ -353,23 +504,11 @@ function renderExamResult() {
 
 async function handleSubmitExam() {
     const result = gradeExam(state.examState.questions, state.examState.answers);
-    const attemptId = state.examState.attemptId || createExamAttemptId();
-    const examSummary = buildExamSummary(result);
     state.examState.result = result;
-    state.examState.attemptId = attemptId;
     state.examState.explanationRecordSaved = false;
+    await persistExamRecord('exam_submitted', { includeSummary: true, explanationsOverride: state.examState.explanations || null });
     renderExamResult();
     renderExamActions('graded');
-    await savePracticeRecord({
-        type: 'exam',
-        recordStage: 'exam_submitted',
-        attemptId,
-        title: `模擬考試（TOEIC ${state.targetScore}）- 交卷紀錄`,
-        score: state.targetScore,
-        examSummary,
-        examSnapshot: buildExamSnapshot(result),
-        explanations: null
-    });
 }
 
 async function handleExplainWrongAnswers() {
@@ -380,21 +519,8 @@ async function handleExplainWrongAnswers() {
     try {
         const payload = buildWrongPayload(state.targetScore, result.wrongItems);
         state.examState.explanations = await fetchExamWrongAnswerExplanations(payload);
-        if (!state.examState.explanationRecordSaved) {
-            const attemptId = state.examState.attemptId || createExamAttemptId();
-            state.examState.attemptId = attemptId;
-            await savePracticeRecord({
-                type: 'exam',
-                recordStage: 'explanations_generated',
-                attemptId,
-                title: `模擬考試（TOEIC ${state.targetScore}）- 解說紀錄`,
-                score: state.targetScore,
-                examSummary: buildExamSummary(result),
-                examSnapshot: buildExamSnapshot(result),
-                explanations: state.examState.explanations
-            });
-            state.examState.explanationRecordSaved = true;
-        }
+        await persistExamRecord('explanations_generated', { includeSummary: true, explanationsOverride: state.examState.explanations });
+        state.examState.explanationRecordSaved = true;
         renderExamResult();
     } catch (error) {
         alert('生成錯題解說失敗: ' + error.message);
@@ -409,12 +535,21 @@ EXAM_BTN.onclick = async () => {
     try {
         const examData = await fetchExamQuestions(state.targetScore);
         const questions = flattenExamQuestions(examData);
+        const attemptId = createExamAttemptId();
+        const recordId = createRecordId('exam');
+        const createdAt = Date.now();
+        const voiceName = state.lastUsedVoice || 'Kore';
         state.examState.questions = questions;
         state.examState.answers = {};
         state.examState.result = null;
         state.examState.explanations = null;
-        state.examState.attemptId = null;
+        state.examState.attemptId = attemptId;
+        state.examState.recordId = recordId;
+        state.examState.recordCreatedAt = createdAt;
+        state.examState.voiceName = voiceName;
+        state.examState.listeningAudioByQuestion = {};
         state.examState.explanationRecordSaved = false;
+        await persistExamRecord('exam_generated', { includeSummary: false, explanationsOverride: null });
         EXAM_META.textContent = `目標分數 TOEIC ${state.targetScore} ・ 共 ${questions.length} 題`;
         renderExamQuestions(EXAM_CONTENT, questions, state.examState.answers);
         renderExamActions('answering');
@@ -436,13 +571,22 @@ EXAM_CONTENT.onclick = async (e) => {
     if (!q || state.examState.result) return;
     if (action === 'answer') {
         state.examState.answers[id] = btn.dataset.option;
+        persistExamRecord('exam_generated', { includeSummary: false, explanationsOverride: state.examState.explanations || null }).catch((e) => console.error('Persist exam answer failed:', e));
         renderExamQuestions(EXAM_CONTENT, state.examState.questions, state.examState.answers);
         return;
     }
     if (action === 'listen') {
         const finishLoading = setButtonLoading(btn, '生成音訊中...', 'loader loader-sm');
         try {
-            const result = await playListeningQuestion(q, state.lastUsedVoice || 'Kore');
+            const cachedAudio = state.examState.listeningAudioByQuestion[id] || '';
+            const result = await playListeningQuestion(q, state.examState.voiceName || 'Kore', cachedAudio);
+            if (result?.base64 && !cachedAudio) {
+                state.examState.listeningAudioByQuestion[id] = result.base64;
+                persistExamRecord(state.examState.result ? 'exam_submitted' : 'exam_generated', {
+                    includeSummary: !!state.examState.result,
+                    explanationsOverride: state.examState.explanations || null
+                }).catch((e) => console.error('Persist exam audio failed:', e));
+            }
             if (result?.fallbackUsed) {
                 EXAM_META.textContent = 'Gemini 聽力語音暫時忙碌，已改用本機語音播放。';
             }

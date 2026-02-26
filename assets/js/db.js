@@ -3,6 +3,16 @@
 export const DB = {
     name: 'ToeicTutorDB', version: 3, db: null,
 
+    getHistorySortTs(item) {
+        if (Number.isFinite(item?.createdAt)) return item.createdAt;
+        if (Number.isFinite(item?.id)) return item.id;
+        if (typeof item?.id === 'string') {
+            const match = item.id.match(/^\d{10,}/);
+            if (match) return Number(match[0]);
+        }
+        return 0;
+    },
+
     init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.name, this.version);
@@ -52,18 +62,21 @@ export const DB = {
         if (!this.db) await this.init();
         return new Promise((r, j) => {
             const req = this.db.transaction('history', 'readonly').objectStore('history').getAll();
-            req.onsuccess = () => r(req.result.sort((a, b) => b.id - a.id));
+            req.onsuccess = () => {
+                const sorted = req.result.sort((a, b) => {
+                    const diff = this.getHistorySortTs(b) - this.getHistorySortTs(a);
+                    if (diff !== 0) return diff;
+                    return String(b.id || '').localeCompare(String(a.id || ''));
+                });
+                r(sorted);
+            };
             req.onerror = () => j(req.error);
         });
     },
 
     async getLatestHistory() {
-        if (!this.db) await this.init();
-        return new Promise((r, j) => {
-            const req = this.db.transaction('history', 'readonly').objectStore('history').openCursor(null, 'prev');
-            req.onsuccess = () => r(req.result ? req.result.value : null);
-            req.onerror = () => j(req.error);
-        });
+        const history = await this.getHistory();
+        return history[0] || null;
     },
 
     async deleteHistory(id) {

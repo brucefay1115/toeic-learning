@@ -6,7 +6,7 @@ import { fetchGeminiTTS } from './apiGemini.js';
 import { renderContent } from './render.js';
 import { setupAudio, setPlayerLoading } from './audioPlayer.js';
 
-let _deps = { switchTab: null };
+let _deps = { switchTab: null, openExamRecord: null, openSpeakingRecord: null };
 
 export function setDeps(deps) { _deps = { ..._deps, ...deps }; }
 
@@ -17,6 +17,7 @@ function createHistoryRecordId() {
 export async function saveToHistory(data, audioBase64, voiceName, topic) {
     const entry = {
         id: Date.now(),
+        createdAt: Date.now(),
         type: 'article',
         date: new Date().toLocaleDateString(),
         title: (data.segments ? data.segments[0].en : data.article).substring(0, 30) + '...',
@@ -33,6 +34,7 @@ export async function saveToHistory(data, audioBase64, voiceName, topic) {
 export async function savePracticeRecord(entry) {
     const record = {
         id: createHistoryRecordId(),
+        createdAt: Date.now(),
         date: new Date().toLocaleDateString(),
         ...entry
     };
@@ -58,15 +60,26 @@ export async function renderHistory() {
                 ? `<span class="history-voice-badge">${item.type === 'speaking' ? '口說' : '考試'}</span>`
                 : '';
             const stageBadge = item.recordStage
-                ? `<span class="history-voice-badge">${item.recordStage === 'exam_submitted' ? '交卷頁' : '解說頁'}</span>`
+                ? `<span class="history-voice-badge">${item.recordStage === 'exam_generated' ? '進行中' : item.recordStage === 'exam_submitted' ? '交卷頁' : item.recordStage === 'explanations_generated' ? '解說頁' : item.recordStage === 'speaking_completed' ? '已完成' : '進行中'}</span>`
                 : '';
             div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
             div.onclick = (e) => {
                 if (e.target.closest('.delete-btn')) return;
-                if (item.type !== 'article') return;
-                loadSession(item);
-                if (_deps.switchTab) _deps.switchTab('learn');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (item.type === 'article') {
+                    loadSession(item);
+                    if (_deps.switchTab) _deps.switchTab('learn');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+                if (item.type === 'exam' && _deps.openExamRecord) {
+                    _deps.openExamRecord(item);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    return;
+                }
+                if (item.type === 'speaking' && _deps.openSpeakingRecord) {
+                    _deps.openSpeakingRecord(item);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             };
             const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = ICONS.close;
             delBtn.onclick = (e) => { e.stopPropagation(); deleteHistoryItem(item.id); };
@@ -110,7 +123,8 @@ export async function clearHistory() {
 
 export async function loadLastSession() {
     try {
-        const latest = await DB.getLatestHistory();
+        const history = await DB.getHistory();
+        const latest = history.find(item => item.type === 'article');
         if (latest?.type !== 'article') return;
         if (latest) loadSession(latest);
     }

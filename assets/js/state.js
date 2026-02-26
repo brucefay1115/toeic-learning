@@ -44,7 +44,11 @@ export const state = {
         result: null,
         explanations: null,
         attemptId: null,
-        explanationRecordSaved: false
+        explanationRecordSaved: false,
+        recordId: null,
+        recordCreatedAt: null,
+        voiceName: 'Kore',
+        listeningAudioByQuestion: {}
     }
 };
 

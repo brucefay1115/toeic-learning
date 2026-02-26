@@ -166,9 +166,10 @@ function pcmToWav(pcmBytes, sampleRate) {
     return new Blob([buffer], { type: 'audio/wav' });
 }
 
-export async function playListeningQuestion(q, voiceName = 'Kore') {
+export async function playListeningQuestion(q, voiceName = 'Kore', prefetchedBase64 = '') {
     const key = `${q.id}:${voiceName}`;
-    let base64 = listeningAudioCache.get(key);
+    let base64 = prefetchedBase64 || listeningAudioCache.get(key);
+    if (base64) listeningAudioCache.set(key, base64);
     if (!base64) {
         let lastError = null;
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -183,7 +184,7 @@ export async function playListeningQuestion(q, voiceName = 'Kore') {
         }
         if (!base64) {
             await speakByBrowserFallback(q.audioText || q.question);
-            return { fallbackUsed: true, message: lastError?.message || '' };
+            return { fallbackUsed: true, message: lastError?.message || '', base64: '' };
         }
     }
     const bytes = atob(base64);
@@ -195,5 +196,5 @@ export async function playListeningQuestion(q, voiceName = 'Kore') {
     const audio = new Audio(url);
     audio.onended = () => URL.revokeObjectURL(url);
     await audio.play();
-    return { fallbackUsed: false };
+    return { fallbackUsed: false, base64 };
 }
