@@ -10,9 +10,14 @@ let _deps = { switchTab: null };
 
 export function setDeps(deps) { _deps = { ..._deps, ...deps }; }
 
+function createHistoryRecordId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export async function saveToHistory(data, audioBase64, voiceName, topic) {
     const entry = {
         id: Date.now(),
+        type: 'article',
         date: new Date().toLocaleDateString(),
         title: (data.segments ? data.segments[0].en : data.article).substring(0, 30) + '...',
         score: state.targetScore,
@@ -23,6 +28,16 @@ export async function saveToHistory(data, audioBase64, voiceName, topic) {
     };
     try { await DB.addHistory(entry); renderHistory(); }
     catch (e) { console.error("Save failed:", e); alert("儲存失敗"); }
+}
+
+export async function savePracticeRecord(entry) {
+    const record = {
+        id: createHistoryRecordId(),
+        date: new Date().toLocaleDateString(),
+        ...entry
+    };
+    await DB.addHistory(record);
+    renderHistory();
 }
 
 export async function renderHistory() {
@@ -39,9 +54,16 @@ export async function renderHistory() {
             const scoreBadge = item.score ? `<span class="history-score-badge">TOEIC ${item.score}</span>` : '';
             const voiceBadge = item.voice ? `<span class="history-voice-badge">${item.voice}</span>` : '';
             const audioIcon = item.audio ? `<span style="font-size:12px;display:inline-flex;align-items:center;">${ICONS.speaker}</span>` : '';
-            div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge}</span></div>`;
+            const typeBadge = item.type && item.type !== 'article'
+                ? `<span class="history-voice-badge">${item.type === 'speaking' ? '口說' : '考試'}</span>`
+                : '';
+            const stageBadge = item.recordStage
+                ? `<span class="history-voice-badge">${item.recordStage === 'exam_submitted' ? '交卷頁' : '解說頁'}</span>`
+                : '';
+            div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
             div.onclick = (e) => {
                 if (e.target.closest('.delete-btn')) return;
+                if (item.type !== 'article') return;
                 loadSession(item);
                 if (_deps.switchTab) _deps.switchTab('learn');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -87,6 +109,10 @@ export async function clearHistory() {
 }
 
 export async function loadLastSession() {
-    try { const latest = await DB.getLatestHistory(); if (latest) loadSession(latest); }
+    try {
+        const latest = await DB.getLatestHistory();
+        if (latest?.type !== 'article') return;
+        if (latest) loadSession(latest);
+    }
     catch (e) { console.log("No history to load."); }
 }

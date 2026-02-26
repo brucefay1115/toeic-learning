@@ -16,6 +16,7 @@ export const state = {
     apiKey: '',
     targetScore: 700,
     selectedVoice: 'random',
+    practiceMode: 'article',
     lastUsedVoice: null,
     currentData: null,
     audioBlobUrl: null,
@@ -27,7 +28,24 @@ export const state = {
     showEnglish: true,
     highlightedElement: null,
     playUntilPct: null,
-    playUntilSegmentIndex: null
+    playUntilSegmentIndex: null,
+    speakingState: {
+        selectedTopic: '機場通關與登機',
+        customTopic: '',
+        finalTopic: '',
+        isConnected: false,
+        isRecording: false,
+        isResponding: false
+    },
+    examState: {
+        score: 700,
+        questions: [],
+        answers: {},
+        result: null,
+        explanations: null,
+        attemptId: null,
+        explanationRecordSaved: false
+    }
 };
 
 export const SRS_INTERVALS = [0, 1, 3, 7, 14, 30];
@@ -43,6 +61,7 @@ export function getNextReviewTime(level) {
 
 export const TEXT_MODEL = "gemini-2.5-flash";
 export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
+export const LIVE_AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
 export const VOICE_OPTIONS = [
     { name: 'random', label: '隨機', desc: '每次不同' },

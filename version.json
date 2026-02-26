@@ -1,9 +1,9 @@
 {
-  "version": "1.1.8",
+  "version": "1.2.0",
   "date": "2026-02-26",
   "changes": [
-    "SRS 複習結果頁新增每個單字的例句與中文翻譯顯示",
-    "SRS 複習結果頁新增單字與英文例句的小喇叭發音按鈕",
-    "優化 SRS 結果卡片排版，提升手機版閱讀性"
+    "口說 Live 改用 Gemini JS SDK 連線流程，修正 WebSocket 訊息解析不穩定問題",
+    "口說串流配置新增 MEDIA_RESOLUTION_LOW（約 66-70 tokens/image）",
+    "更新快取版本，確保 speakingLive 新流程可即時生效"
   ]
 }

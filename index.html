@@ -58,23 +58,79 @@
             <h3 class="section-title" id="phraseSectionTitle">常用片語 Key Phrases</h3>
             <div id="phraseList"></div>
         </div>
+        <div class="hidden" id="speakingSessionView">
+            <div class="speaking-status" id="speakingStatus">尚未開始對話</div>
+            <div class="practice-inline-actions">
+                <button class="wm-btn secondary speaking-stop-btn" id="btnStopSpeaking">停止對話</button>
+                <button class="wm-btn secondary speaking-stop-btn" id="btnSpeakingBack">返回主題設定</button>
+            </div>
+            <div class="speaking-log" id="speakingLog"></div>
+        </div>
+        <div class="exam-shell hidden" id="examShell">
+            <div class="exam-meta" id="examMeta"></div>
+            <div class="exam-content" id="examContent"></div>
+            <div class="exam-actions" id="examActions"></div>
+            <button class="wm-btn secondary exam-back-btn" id="btnExamBack">返回考試設定</button>
+        </div>
     </div>
 
     <!-- TAB: Practice -->
     <div id="tabPractice" class="container hidden">
         <div class="practice-container">
-            <h2>選擇目標分數</h2>
-            <p class="subtitle">根據你的多益程度選擇適合的難度</p>
-            <div class="score-selector" id="scoreSelector"></div>
-            <div class="practice-section">
-                <h3 class="practice-label">自訂主題（選填）</h3>
-                <input type="text" class="topic-input" id="customTopic" placeholder="例如：機場報到、商業會議、餐廳點餐...">
+            <h2>練習模式</h2>
+            <p class="subtitle">選擇文章、口說或模擬考試</p>
+
+            <div class="practice-mode-switch" id="practiceModeSwitch">
+                <button class="practice-mode-btn active" data-mode="article">文章練習</button>
+                <button class="practice-mode-btn" data-mode="speaking">口說對話</button>
+                <button class="practice-mode-btn" data-mode="exam">模擬考試</button>
             </div>
-            <div class="practice-section">
-                <h3 class="practice-label">朗讀語音</h3>
-                <div class="voice-selector" id="voiceSelector"></div>
+
+            <div class="practice-mode-panel" id="practicePanelArticle">
+                <h3 class="practice-label">目標分數</h3>
+                <p class="practice-note">根據你的多益程度選擇適合難度</p>
+                <div class="score-selector" id="scoreSelector"></div>
+
+                <div class="practice-section">
+                    <h3 class="practice-label">自訂主題（選填）</h3>
+                    <input type="text" class="topic-input" id="customTopic" placeholder="例如：機場報到、商業會議、餐廳點餐...">
+                </div>
+                <div class="practice-section">
+                    <h3 class="practice-label">朗讀語音</h3>
+                    <div class="voice-selector" id="voiceSelector"></div>
+                </div>
+                <button class="generate-btn" id="btnGenerate">開始學習 (Generate)</button>
             </div>
-            <button class="generate-btn" id="btnGenerate">開始學習 (Generate)</button>
+
+            <div class="practice-mode-panel hidden" id="practicePanelSpeaking">
+                <div id="speakingConfigView">
+                    <h3 class="practice-label">主題（可選一個）</h3>
+                    <div class="topic-preset-group" id="speakingPresetGroup">
+                        <button class="topic-chip active" data-topic="機場通關與登機">機場通關與登機</button>
+                        <button class="topic-chip" data-topic="商務會議與簡報">商務會議與簡報</button>
+                        <button class="topic-chip" data-topic="電話客服與問題排除">電話客服與問題排除</button>
+                        <button class="topic-chip" data-topic="報價談判與合約討論">報價談判與合約討論</button>
+                        <button class="topic-chip" data-topic="飯店訂房與改期">飯店訂房與改期</button>
+                        <button class="topic-chip" data-topic="餐廳訂位與抱怨處理">餐廳訂位與抱怨處理</button>
+                        <button class="topic-chip" data-topic="跨部門合作與進度追蹤">跨部門合作與進度追蹤</button>
+                        <button class="topic-chip" data-topic="面試與自我介紹">面試與自我介紹</button>
+                    </div>
+                    <div class="practice-section">
+                        <h3 class="practice-label">自訂主題（選填）</h3>
+                        <input type="text" class="topic-input" id="speakingCustomTopic" placeholder="例如：談判報價、面試自我介紹、訂房問題處理...">
+                    </div>
+                    <button class="generate-btn" id="btnStartSpeaking">開始口說對話</button>
+                </div>
+            </div>
+
+            <div class="practice-mode-panel hidden" id="practicePanelExam">
+                <div id="examConfigView">
+                    <h3 class="practice-label">考試設定</h3>
+                    <p class="practice-note">依目前目標分數生成四類題目：聽力 3 題 / 閱讀 3 篇 3 題 / 單字 3 題 / 文法 3 題</p>
+                    <div class="score-selector" id="examScoreSelector"></div>
+                    <button class="generate-btn" id="btnStartExam">開始模擬考試</button>
+                </div>
+            </div>
         </div>
     </div>
 

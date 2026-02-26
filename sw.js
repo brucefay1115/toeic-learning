@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toeic-tutor-v1.1.8';
+const CACHE_NAME = 'toeic-tutor-v1.2.2';
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -13,6 +13,9 @@ const STATIC_ASSETS = [
   './assets/js/srs.js',
   './assets/js/audioPlayer.js',
   './assets/js/history.js',
+  './assets/js/speakingLive.js',
+  './assets/js/exam.js',
+  './assets/js/mic-processor.js',
   './assets/js/driveSync.js',
   './assets/js/updater.js',
   './assets/js/installPrompt.js',
