@@ -150,6 +150,18 @@ async function connectLive(topic) {
             }
         }
     });
+
+    emitStatus('AI 準備先開場...');
+    state.speakingState.isResponding = true;
+    liveSession.sendClientContent({
+        turns: [{
+            role: 'user',
+            parts: [{
+                text: `Start the conversation first about "${topic}". Give a short greeting in simple English, then ask one easy warm-up question.`
+            }]
+        }],
+        turnComplete: true
+    });
 }
 
 function sendRealtimePcm(floatChunk) {
