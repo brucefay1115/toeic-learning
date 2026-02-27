@@ -1,5 +1,7 @@
 # TOEIC AI Tutor — 你的 AI 多益家教
 
+[English](./README.en.md) | 中文
+
 > 零安裝、零月費、AI 驅動的多益學習神器。打開瀏覽器就能練，忙碌的你也能高效備考。
 
 ## Demo
