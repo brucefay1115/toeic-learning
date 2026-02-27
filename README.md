@@ -4,7 +4,7 @@
 
 ## Demo
 
-[Demo Video](https://youtube.com/shorts/zNm1YYRIGrE)
+[![Demo Video](https://img.youtube.com/vi/zNm1YYRIGrE/0.jpg)](https://youtube.com/shorts/zNm1YYRIGrE)
 
 👆 點擊觀看 Demo 影片
 
@@ -12,7 +12,7 @@
 
 ## 👉 立即使用
 
-[![Demo Video](https://img.youtube.com/vi/zNm1YYRIGrE/0.jpg)](https://youtube.com/shorts/zNm1YYRIGrE)
+**[https://brucefay1115.github.io/toeic-learning](https://brucefay1115.github.io/toeic-learning)**
 
 不用下載、不用安裝，點開連結就能開始學習！
 
