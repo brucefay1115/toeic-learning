@@ -80,6 +80,37 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     background: var(--card-bg); width: 90%; max-width: 350px; padding: 24px;
     border-radius: var(--radius); box-shadow: var(--shadow); text-align: center;
 }
+#keyModal .settings-section {
+    text-align: left;
+}
+#keyModal .settings-label-center {
+    text-align: center;
+}
+#keyModal .settings-section + .settings-section {
+    border-top: 1px solid #e6e6e6;
+    margin-top: 16px;
+    padding-top: 16px;
+}
+#keyModal .settings-api-guide-link {
+    display: flex;
+    justify-content: center;
+    text-align: center;
+}
+#keyModal .settings-bottom-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+}
+#keyModal .settings-action-btn {
+    flex: 1;
+    width: auto;
+    margin: 0;
+}
+#keyModal #btnCloseKeyModal.settings-action-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
 .api-guide-link {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 15px;
     color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 500;
@@ -585,7 +616,7 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
 .header-right { display: flex; align-items: center; gap: 6px; }
 
 .cloud-section {
-    border-top: 1px solid #eee; margin-top: 18px; padding-top: 16px; text-align: left;
+    text-align: left;
 }
 .cloud-section h4 {
     font-size: 14px; font-weight: 600; margin: 0 0 12px; color: var(--text-main);

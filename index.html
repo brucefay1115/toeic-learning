@@ -252,23 +252,27 @@
     <div class="modal-overlay" id="keyModal">
         <div class="modal-card">
             <h3 data-i18n="settingsTitle">設定 Gemini API</h3>
-            <div class="practice-section">
-                <h3 class="practice-label" data-i18n="settingsLanguageLabel">介面語言</h3>
+
+            <section class="settings-section">
+                <h3 class="practice-label settings-label-center" data-i18n="settingsApiLabel">Gemini API Key</h3>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-guide-link settings-api-guide-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    <span><span data-i18n="settingsGetApiKey">點此取得 Google API Key</span><br><span style="font-size:11px; font-weight:400;" data-i18n="settingsGoogleLoginHint">(需登入 Google 帳號)</span></span>
+                </a>
+                <div class="input-group">
+                    <input type="password" id="apiKeyInput" placeholder="Paste API Key here...">
+                    <button type="button" class="api-clear-btn" id="btnClearApiKey" data-i18n="settingsClear">一鍵清除</button>
+                </div>
+                <p style="font-size: 12px; color: #999; margin-top: 10px;" data-i18n="settingsLocalStorageNote">Key 僅儲存於本地裝置 (IndexedDB)，不會備份到 Google Drive</p>
+            </section>
+
+            <section class="settings-section">
+                <h3 class="practice-label settings-label-center" data-i18n="settingsLanguageLabel">介面語言</h3>
                 <select id="localeSelect" class="topic-input"></select>
                 <p style="font-size:12px; color:#999; margin-top:8px;" data-i18n="settingsLanguageHint">AI 解說與翻譯將依此語言輸出。</p>
-            </div>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-guide-link">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-                <span><span data-i18n="settingsGetApiKey">點此取得 Google API Key</span><br><span style="font-size:11px; font-weight:400;" data-i18n="settingsGoogleLoginHint">(需登入 Google 帳號)</span></span>
-            </a>
-            <div class="input-group">
-                <input type="password" id="apiKeyInput" placeholder="Paste API Key here...">
-                <button type="button" class="api-clear-btn" id="btnClearApiKey" data-i18n="settingsClear">一鍵清除</button>
-            </div>
-            <button class="generate-btn" id="btnSaveApiKey" style="margin: 10px 0 0;" data-i18n="settingsSave">儲存</button>
-            <button class="wm-btn secondary" id="btnCloseKeyModal" style="margin-top: 8px; display: none;" data-i18n="settingsClose">關閉</button>
-            <p style="font-size: 12px; color: #999; margin-top: 10px;" data-i18n="settingsLocalStorageNote">Key 僅儲存於本地裝置 (IndexedDB)，不會備份到 Google Drive</p>
+            </section>
 
+            <section class="settings-section">
             <div class="cloud-section">
                 <h4>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
@@ -296,6 +300,12 @@
                     </div>
                     <div class="cloud-last-sync" id="cloudLastSync"></div>
                 </div>
+            </div>
+            </section>
+
+            <div class="settings-bottom-actions">
+                <button class="generate-btn settings-action-btn" id="btnSaveApiKey" data-i18n="settingsSave">儲存</button>
+                <button class="wm-btn secondary settings-action-btn" id="btnCloseKeyModal" style="display: none;" data-i18n="settingsClose">關閉</button>
             </div>
         </div>
     </div>
