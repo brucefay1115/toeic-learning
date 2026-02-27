@@ -6,7 +6,7 @@ import { fetchGeminiTTS } from './apiGemini.js';
 import { renderContent } from './render.js';
 import { setupAudio, setPlayerLoading } from './audioPlayer.js';
 
-let _deps = { switchTab: null, openExamRecord: null, openSpeakingRecord: null };
+let _deps = { switchTab: null, openArticleRecord: null, openExamRecord: null, openSpeakingRecord: null, onHistoryMutated: null };
 
 export function setDeps(deps) { _deps = { ..._deps, ...deps }; }
 
@@ -27,8 +27,13 @@ export async function saveToHistory(data, audioBase64, voiceName, topic) {
         data,
         audio: audioBase64
     };
-    try { await DB.addHistory(entry); renderHistory(); }
+    try {
+        await DB.addHistory(entry);
+        renderHistory();
+        return entry;
+    }
     catch (e) { console.error("Save failed:", e); alert("儲存失敗"); }
+    return null;
 }
 
 export async function savePracticeRecord(entry) {
@@ -53,21 +58,28 @@ export async function renderHistory() {
         }
         history.forEach(item => {
             const div = document.createElement('div'); div.className = 'history-item';
+            const typeLabel = item.type === 'speaking' ? '口說' : item.type === 'exam' ? '考試' : '文章';
             const scoreBadge = item.score ? `<span class="history-score-badge">TOEIC ${item.score}</span>` : '';
             const voiceBadge = item.voice ? `<span class="history-voice-badge">${item.voice}</span>` : '';
             const audioIcon = item.audio ? `<span style="font-size:12px;display:inline-flex;align-items:center;">${ICONS.speaker}</span>` : '';
-            const typeBadge = item.type && item.type !== 'article'
-                ? `<span class="history-voice-badge">${item.type === 'speaking' ? '口說' : '考試'}</span>`
-                : '';
+            const typeBadge = `<span class="history-voice-badge">${typeLabel}</span>`;
             const stageBadge = item.recordStage
                 ? `<span class="history-voice-badge">${item.recordStage === 'exam_generated' ? '進行中' : item.recordStage === 'exam_submitted' ? '交卷頁' : item.recordStage === 'explanations_generated' ? '解說頁' : item.recordStage === 'speaking_completed' ? '已完成' : '進行中'}</span>`
                 : '';
-            div.innerHTML = `<div class="history-content"><div style="font-weight:600;">${item.title}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
+            const displayTitle = item.type === 'exam'
+                ? '模擬考試'
+                : item.type === 'speaking'
+                    ? (item.topic || item.title || '口說對話')
+                    : (item.title || '');
+            div.innerHTML = `<div class="history-content"><div class="history-title">${displayTitle}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
             div.onclick = (e) => {
                 if (e.target.closest('.delete-btn')) return;
                 if (item.type === 'article') {
-                    loadSession(item);
-                    if (_deps.switchTab) _deps.switchTab('learn');
+                    if (_deps.openArticleRecord) _deps.openArticleRecord(item);
+                    else {
+                        loadSession(item);
+                        if (_deps.switchTab) _deps.switchTab('learn');
+                    }
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     return;
                 }
@@ -82,7 +94,7 @@ export async function renderHistory() {
                 }
             };
             const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = ICONS.close;
-            delBtn.onclick = (e) => { e.stopPropagation(); deleteHistoryItem(item.id); };
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteHistoryItem(item); };
             div.appendChild(delBtn);
             list.appendChild(div);
         });
@@ -115,10 +127,18 @@ export function loadSession(item) {
     }
 }
 
-async function deleteHistoryItem(id) { await DB.deleteHistory(id); renderHistory(); }
+async function deleteHistoryItem(item) {
+    await DB.deleteHistory(item.id);
+    if (_deps.onHistoryMutated) _deps.onHistoryMutated({ action: 'delete', item });
+    renderHistory();
+}
 
 export async function clearHistory() {
-    if (confirm('確定清除全部歷史紀錄？')) { await DB.clearHistory(); renderHistory(); }
+    if (confirm('確定清除全部歷史紀錄？')) {
+        await DB.clearHistory();
+        if (_deps.onHistoryMutated) _deps.onHistoryMutated({ action: 'clear' });
+        renderHistory();
+    }
 }
 
 export async function loadLastSession() {

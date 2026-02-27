@@ -7,9 +7,6 @@ import { addLongPressListener, syncVocabCardBookmark } from './vocab.js';
 import { audioEl, playBtn, ensureAudioReady } from './audioPlayer.js';
 
 export function renderContent(data, voiceName) {
-    document.getElementById('emptyState').classList.add('hidden');
-    document.getElementById('learningArea').classList.remove('hidden');
-
     const metaEl = document.getElementById('articleMeta');
     metaEl.innerHTML = '';
     if (voiceName) {

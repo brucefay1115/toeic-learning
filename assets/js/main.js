@@ -9,7 +9,7 @@ import { setupAudio } from './audioPlayer.js';
 import { renderContent, toggleEnglish, toggleTranslation } from './render.js';
 import { closeModal, renderVocabTab, setSrsTrigger } from './vocab.js';
 import { startSrsReview, closeSrsReview, finishSrsReview, setOnFinish } from './srs.js';
-import { saveToHistory, savePracticeRecord, renderHistory, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
+import { saveToHistory, savePracticeRecord, renderHistory, loadSession, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
 import { initUpdater } from './updater.js';
 import { initInstallPrompt } from './installPrompt.js';
 import { startSpeakingSession, stopSpeakingSession } from './speakingLive.js';
@@ -18,18 +18,59 @@ import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
 setOnFinish(renderVocabTab);
-setHistoryDeps({ switchTab, openExamRecord: openExamRecordFromHistory, openSpeakingRecord: openSpeakingRecordFromHistory });
+setHistoryDeps({
+    switchTab,
+    openArticleRecord: openArticleRecordFromHistory,
+    openExamRecord: openExamRecordFromHistory,
+    openSpeakingRecord: openSpeakingRecordFromHistory,
+    onHistoryMutated: handleHistoryMutated
+});
 DriveSync.setCallbacks({ renderHistory, loadLastSession, renderVocabTab });
 
 /* ── Expose minimal globals needed by dynamic innerHTML onclick ── */
 window.speakText = speakText;
 window.finishSrsReview = finishSrsReview;
 window.DriveSync = DriveSync;
+document.addEventListener('player-loading-changed', updatePlayerBarVisibility);
 
 const emptyStateEl = document.getElementById('emptyState');
 const learningAreaEl = document.getElementById('learningArea');
 const speakingSessionViewEl = document.getElementById('speakingSessionView');
 const examShellEl = document.getElementById('examShell');
+let activeTab = 'learn';
+let currentLearnRecord = null;
+
+function markLearnRecord(record) {
+    currentLearnRecord = record ? { ...record } : null;
+}
+
+function updatePlayerBarVisibility() {
+    const pb = document.getElementById('playerBar');
+    const playBtn = document.getElementById('btnPlayPause');
+    const articleVisible = !learningAreaEl.classList.contains('hidden');
+    const isLoadingArticleAudio = !!playBtn && playBtn.disabled;
+    const hasArticleAudio = !!state.audioBlobUrl || isLoadingArticleAudio;
+    const shouldShow = activeTab === 'learn' && articleVisible && hasArticleAudio;
+    pb.classList.toggle('hidden', !shouldShow);
+}
+
+function clearArticleLearningContent() {
+    state.currentData = null;
+    state.audioReady = false;
+    if (state.audioBlobUrl) {
+        URL.revokeObjectURL(state.audioBlobUrl);
+        state.audioBlobUrl = null;
+    }
+    const audioEl = document.getElementById('mainAudio');
+    if (audioEl) {
+        audioEl.pause();
+        audioEl.removeAttribute('src');
+        audioEl.load();
+    }
+    setLearnRuntimeMode('article');
+    markLearnRecord(null);
+    updatePlayerBarVisibility();
+}
 
 function setLearnRuntimeMode(mode) {
     const showArticle = mode === 'article';
@@ -44,10 +85,12 @@ function setLearnRuntimeMode(mode) {
     }
     speakingSessionViewEl.classList.toggle('hidden', !showSpeaking);
     examShellEl.classList.toggle('hidden', !showExam);
+    updatePlayerBarVisibility();
 }
 
 /* ── Tab switching ── */
 function switchTab(tabName) {
+    activeTab = tabName;
     ['tabLearn', 'tabPractice', 'tabVocab', 'tabHistory', 'tabAbout'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
@@ -55,8 +98,7 @@ function switchTab(tabName) {
     if (tabName === 'practice' && state.practiceMode === 'exam') resetExamPracticeView();
     if (tabName === 'history') renderHistory();
     if (tabName === 'vocab') renderVocabTab();
-    const pb = document.getElementById('playerBar');
-    if (tabName === 'learn' && state.audioBlobUrl && !learningAreaEl.classList.contains('hidden')) pb.classList.remove('hidden'); else pb.classList.add('hidden');
+    updatePlayerBarVisibility();
 }
 window.switchTab = switchTab;
 
@@ -134,6 +176,16 @@ function saveApiKey() {
     else { alert('請輸入有效的 API Key'); }
 }
 
+async function clearApiKey() {
+    const confirmed = confirm('確定要清除已儲存的 API Key 嗎？');
+    if (!confirmed) return;
+    state.apiKey = '';
+    document.getElementById('apiKeyInput').value = '';
+    await DB.setSetting('gemini_api_key', null);
+    document.getElementById('btnCloseKeyModal').style.display = 'none';
+    alert('API Key 已清除');
+}
+
 function safeLocalGet(key) {
     try { return localStorage.getItem(key); } catch { return null; }
 }
@@ -193,18 +245,13 @@ async function persistExamRecord(recordStage, options = {}) {
     ensureExamRecordIdentity();
     const result = state.examState.result;
     const examSummary = includeSummary && result ? buildExamSummary(result) : null;
-    const titleSuffixMap = {
-        exam_generated: '進行中',
-        exam_submitted: '交卷紀錄',
-        explanations_generated: '解說紀錄'
-    };
     await savePracticeRecord({
         id: state.examState.recordId,
         createdAt: state.examState.recordCreatedAt || Date.now(),
         type: 'exam',
         recordStage,
         attemptId: state.examState.attemptId,
-        title: `模擬考試（TOEIC ${state.targetScore}）- ${titleSuffixMap[recordStage] || '紀錄'}`,
+        title: '模擬考試',
         score: state.targetScore,
         examSummary,
         examSnapshot: createExamSnapshot(),
@@ -251,6 +298,15 @@ function openExamRecordFromHistory(item) {
     }
     setPracticeMode('exam');
     showExamSessionView();
+    markLearnRecord({ id: item.id, type: 'exam', fromHistory: true });
+}
+
+function openArticleRecordFromHistory(item) {
+    setPracticeMode('article');
+    loadSession(item);
+    setLearnRuntimeMode('article');
+    switchTab('learn');
+    markLearnRecord({ id: item.id, type: 'article', fromHistory: true });
 }
 
 function openSpeakingRecordFromHistory(item) {
@@ -267,6 +323,23 @@ function openSpeakingRecordFromHistory(item) {
         row.innerHTML = `<span class="speaking-log-role">${String(entry.role || 'log').toUpperCase()}</span>${entry.text || ''}`;
         logEl.prepend(row);
     });
+    markLearnRecord({ id: item.id, type: 'speaking', fromHistory: true });
+}
+
+function handleHistoryMutated({ action, item }) {
+    if (action === 'clear') {
+        clearArticleLearningContent();
+        return;
+    }
+    if (action !== 'delete' || !item || !currentLearnRecord?.fromHistory) return;
+    if (item.id !== currentLearnRecord.id) return;
+    if (item.type === 'article') {
+        clearArticleLearningContent();
+        return;
+    }
+    setPracticeMode('article');
+    setLearnRuntimeMode('article');
+    markLearnRecord(null);
 }
 
 function initAppVersionDisplay() {
@@ -299,6 +372,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 document.querySelector('#wordModal .wm-btn.secondary').onclick = () => closeModal();
 document.getElementById('btnSaveApiKey').onclick = () => saveApiKey();
+document.getElementById('btnClearApiKey').onclick = () => clearApiKey();
 document.getElementById('btnCloseKeyModal').onclick = () => keyModal.classList.remove('active');
 document.getElementById('btnCloudLogin').onclick = () => DriveSync.login();
 document.getElementById('btnBackupNow').onclick = () => DriveSync.backupNow();
@@ -375,7 +449,7 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
             createdAt: Date.now(),
             type: 'speaking',
             date: new Date().toLocaleDateString(),
-            title: `口說對話：${topic}`,
+            title: topic,
             score: state.targetScore,
             topic,
             startedAt: Date.now(),
@@ -660,7 +734,8 @@ GENERATE_BTN.onclick = async () => {
         setLearnRuntimeMode('article');
         const audioBase64 = await fetchGeminiTTS(contentData.article, voiceName);
         setupAudio(audioBase64);
-        await saveToHistory(contentData, audioBase64, voiceName, customTopic);
+        const articleRecord = await saveToHistory(contentData, audioBase64, voiceName, customTopic);
+        markLearnRecord(articleRecord?.id ? { id: articleRecord.id, type: 'article', fromHistory: false } : null);
         switchTab('learn');
     } catch (error) {
         console.error(error);

@@ -1,4 +1,4 @@
-// Google Drive appDataFolder backup/restore + DB write proxy for auto-sync.
+// Google Drive appDataFolder backup/restore (manual actions only).
 
 import { DB } from './db.js';
 
@@ -11,8 +11,6 @@ export const DriveSync = {
     tokenClient: null,
     accessToken: null,
     fileId: null,
-    syncTimer: null,
-    DEBOUNCE_MS: 3000,
     _pendingLoginResolve: null,
 
     setCallbacks(cbs) {
@@ -52,11 +50,7 @@ export const DriveSync = {
             this._pendingLoginResolve = resolve;
             this.tokenClient.requestAccessToken({ prompt: 'consent' });
         });
-        if (!ok) return false;
-        try {
-            await this._compareAndPromptSync();
-        } catch (e) { console.log('Sync check failed:', e); }
-        return true;
+        return ok;
     },
 
     async silentLogin() {
@@ -163,38 +157,31 @@ export const DriveSync = {
     },
 
     async upload(jsonStr) {
-        this.setSyncStatus('syncing', '正在同步...');
-        try {
-            const fileId = await this.findBackupFile();
-            const metadata = { name: this.BACKUP_FILENAME, mimeType: 'application/json' };
-            if (!fileId) metadata.parents = ['appDataFolder'];
+        const fileId = await this.findBackupFile();
+        const metadata = { name: this.BACKUP_FILENAME, mimeType: 'application/json' };
+        if (!fileId) metadata.parents = ['appDataFolder'];
 
-            const boundary = '-------DriveBackupBoundary';
-            const body =
-                `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-                `--${boundary}\r\nContent-Type: application/json\r\n\r\n${jsonStr}\r\n` +
-                `--${boundary}--`;
+        const boundary = '-------DriveBackupBoundary';
+        const body =
+            `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+            `--${boundary}\r\nContent-Type: application/json\r\n\r\n${jsonStr}\r\n` +
+            `--${boundary}--`;
 
-            const url = fileId
-                ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
-                : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+        const url = fileId
+            ? `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`
+            : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 
-            const resp = await this._apiFetch(url, {
-                method: fileId ? 'PATCH' : 'POST',
-                headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
-                body,
-            });
-            const result = await resp.json();
-            if (result.id) this.fileId = result.id;
+        const resp = await this._apiFetch(url, {
+            method: fileId ? 'PATCH' : 'POST',
+            headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body,
+        });
+        const result = await resp.json();
+        if (result.id) this.fileId = result.id;
 
-            const now = new Date().toLocaleString();
-            await DB.setSetting('cloud_last_sync', now);
-            this.setSyncStatus('synced', `已同步 ${now}`);
-            this.updateUI();
-        } catch (e) {
-            console.error('Upload failed:', e);
-            this.setSyncStatus('error', '同步失敗');
-        }
+        const now = new Date().toLocaleString();
+        await DB.setSetting('cloud_last_sync', now);
+        this.updateUI();
     },
 
     async download() {
@@ -204,17 +191,6 @@ export const DriveSync = {
             `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`
         );
         return resp.json();
-    },
-
-    scheduleSync() {
-        if (!this.isLoggedIn()) return;
-        clearTimeout(this.syncTimer);
-        this.syncTimer = setTimeout(async () => {
-            try {
-                const json = await this.exportData();
-                await this.upload(json);
-            } catch (e) { console.error('Scheduled sync failed:', e); }
-        }, this.DEBOUNCE_MS);
     },
 
     async backupNow() {
@@ -245,72 +221,6 @@ export const DriveSync = {
             alert('還原失敗: ' + e.message);
             btn.textContent = '從雲端還原'; btn.disabled = false;
         }
-    },
-
-    async _compareAndPromptSync() {
-        const cloudData = await this.download();
-        const localHistory = await DB.getHistory();
-        const localWords = await DB.getSavedWords();
-
-        if (!cloudData || !cloudData.exportedAt) {
-            const json = await this.exportData();
-            await this.upload(json);
-            return;
-        }
-
-        const cloudHistoryCount = (cloudData.history || []).length;
-        const cloudWordsCount = (cloudData.savedWords || []).length;
-        const isSame = localHistory.length === cloudHistoryCount && localWords.length === cloudWordsCount;
-
-        if (isSame) return;
-
-        this._showSyncChoicePrompt(cloudData, {
-            localHistoryCount: localHistory.length,
-            localWordsCount: localWords.length,
-            cloudHistoryCount,
-            cloudWordsCount,
-            cloudDate: new Date(cloudData.exportedAt).toLocaleString(),
-        });
-    },
-
-    _showSyncChoicePrompt(cloudData, info) {
-        const overlay = document.createElement('div');
-        overlay.className = 'restore-overlay';
-        overlay.innerHTML = `<div class="restore-card">
-            <h3>本地與雲端資料不同</h3>
-            <p style="text-align:left; line-height:1.8; margin-bottom:14px;">
-                <b>本地：</b>${info.localHistoryCount} 筆紀錄、${info.localWordsCount} 個單字<br>
-                <b>雲端：</b>${info.cloudHistoryCount} 筆紀錄、${info.cloudWordsCount} 個單字<br>
-                <span style="font-size:11px; color:#999;">雲端備份時間：${info.cloudDate}</span>
-            </p>
-            <div class="sync-choice-btns">
-                <button class="btn-use-cloud">以雲端為主（覆蓋本地）</button>
-                <button class="btn-use-local">以本地為主（覆蓋雲端）</button>
-                <button class="btn-skip">暫時跳過</button>
-            </div>
-        </div>`;
-        overlay.querySelector('.btn-use-cloud').onclick = async () => {
-            const btn = overlay.querySelector('.btn-use-cloud');
-            btn.textContent = '同步中...'; btn.disabled = true;
-            try {
-                await this.importData(cloudData);
-                overlay.remove();
-                if (_callbacks.renderHistory) _callbacks.renderHistory();
-                if (_callbacks.loadLastSession) await _callbacks.loadLastSession();
-                if (_callbacks.renderVocabTab) _callbacks.renderVocabTab();
-            } catch (e) { alert('同步失敗: ' + e.message); overlay.remove(); }
-        };
-        overlay.querySelector('.btn-use-local').onclick = async () => {
-            const btn = overlay.querySelector('.btn-use-local');
-            btn.textContent = '同步中...'; btn.disabled = true;
-            try {
-                const json = await this.exportData();
-                await this.upload(json);
-                overlay.remove();
-            } catch (e) { alert('同步失敗: ' + e.message); overlay.remove(); }
-        };
-        overlay.querySelector('.btn-skip').onclick = () => overlay.remove();
-        document.body.appendChild(overlay);
     },
 
     _showRestorePrompt(data, dateStr, triggerBtn) {
@@ -348,27 +258,16 @@ export const DriveSync = {
         document.body.appendChild(overlay);
     },
 
-    setSyncStatus(status, text) {
-        const el = document.getElementById('syncIndicator');
-        const tip = document.getElementById('syncTooltip');
-        el.classList.remove('syncing', 'synced', 'error');
-        if (status) {
-            el.classList.add('visible', status);
-            tip.textContent = text || '';
-        }
-    },
-
     async updateUI() {
         const loggedIn = this.isLoggedIn();
         const authArea = document.getElementById('cloudAuthArea');
         const userArea = document.getElementById('cloudUserArea');
-        const indicator = document.getElementById('syncIndicator');
+        if (!authArea || !userArea) return;
         const actionsEl = userArea.querySelector('.cloud-actions');
 
         if (loggedIn) {
             authArea.classList.add('hidden');
             userArea.classList.remove('hidden');
-            indicator.classList.add('visible');
             const email = await DB.getSetting('cloud_user_email') || '';
             const name = await DB.getSetting('cloud_user_name') || email;
             document.getElementById('cloudUserName').textContent = name;
@@ -381,41 +280,8 @@ export const DriveSync = {
                 <button class="cloud-action-btn" id="btnRestore" onclick="DriveSync.restore()">從雲端還原</button>
                 <button class="cloud-action-btn danger" id="btnCloudLogout" onclick="DriveSync.logout()">登出</button>`;
         } else {
-            const enabled = await DB.getSetting('cloud_sync_enabled');
-            const email = await DB.getSetting('cloud_user_email');
-            if (enabled && email) {
-                authArea.classList.add('hidden');
-                userArea.classList.remove('hidden');
-                const name = await DB.getSetting('cloud_user_name') || email;
-                document.getElementById('cloudUserName').textContent = name;
-                document.getElementById('cloudUserEmail').textContent = email;
-                document.getElementById('cloudAvatar').textContent = (name || 'G')[0].toUpperCase();
-                document.getElementById('cloudLastSync').textContent = '連線已過期，請重新連線';
-                actionsEl.innerHTML = `
-                    <button class="cloud-action-btn primary" onclick="DriveSync.login()">重新連線</button>
-                    <button class="cloud-action-btn danger" onclick="DriveSync.logout()">登出</button>`;
-            } else {
-                authArea.classList.remove('hidden');
-                userArea.classList.add('hidden');
-                indicator.classList.remove('visible');
-            }
+            authArea.classList.remove('hidden');
+            userArea.classList.add('hidden');
         }
     },
 };
-
-/* Proxy DB writes to trigger cloud sync -- preserves original debounce behaviour */
-const _origDB = {};
-['setSetting', 'addHistory', 'deleteHistory', 'clearHistory',
- 'addSavedWord', 'updateWordSRS', 'deleteSavedWord'].forEach(method => {
-    _origDB[method] = DB[method].bind(DB);
-    DB[method] = async function (...args) {
-        const result = await _origDB[method](...args);
-        if (method === 'setSetting' && ['cloud_sync_enabled', 'cloud_user_email', 'cloud_user_name', 'cloud_last_sync', 'gemini_api_key'].includes(args[0])) {
-            return result;
-        }
-        if (DriveSync.isLoggedIn()) {
-            DriveSync.scheduleSync();
-        }
-        return result;
-    };
-});

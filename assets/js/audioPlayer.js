@@ -13,7 +13,6 @@ const speeds = [1.0, 0.75, 0.5, 0.25];
 let speedIndex = 0;
 
 export function setPlayerLoading(isLoading) {
-    playerBar.classList.remove('hidden');
     playBtn.disabled = isLoading;
     btnSpeed.disabled = isLoading;
     progressContainer.style.pointerEvents = isLoading ? 'none' : 'auto';
@@ -23,6 +22,7 @@ export function setPlayerLoading(isLoading) {
     } else {
         btnSpeed.innerText = state.playbackSpeed === 1.0 ? '1.0x' : state.playbackSpeed + 'x';
     }
+    document.dispatchEvent(new CustomEvent('player-loading-changed'));
 }
 
 function writeString(v, o, s) {
