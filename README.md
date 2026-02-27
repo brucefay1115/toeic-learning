@@ -12,7 +12,7 @@
 
 ## 👉 立即使用
 
-**[https://brucefay1115.github.io/toeic-learning](https://brucefay1115.github.io/toeic-learning)**
+[![Demo Video](https://img.youtube.com/vi/zNm1YYRIGrE/0.jpg)](https://youtube.com/shorts/zNm1YYRIGrE)
 
 不用下載、不用安裝，點開連結就能開始學習！
 
@@ -196,9 +196,9 @@ AI 生成文章後自動跳到「學習」頁面：
 
 如果覺得這個工具對你有幫助，歡迎請我喝杯咖啡，支持我持續開發更多功能！
 
-[Facebook](https://www.facebook.com/bruce.yang.94)
-[LinkedIn](https://www.linkedin.com/in/chun-hsiang-yang-b17238165)
-[Buy Me a Coffee](https://buymeacoffee.com/brucefay110)
+[![Facebook](https://img.shields.io/badge/Facebook-Bruce%20Yang-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/bruce.yang.94)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Chun--Hsiang%20Yang-0A66C2?logo=linkedin&logoColor=white)](https://www.linkedin.com/in/chun-hsiang-yang-b17238165)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/brucefay110)
 
 ---
 
