@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toeic-tutor-v1.2.2';
+const CACHE_NAME = 'toeic-tutor-v1.2.3';
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -19,6 +19,21 @@ const STATIC_ASSETS = [
   './assets/js/driveSync.js',
   './assets/js/updater.js',
   './assets/js/installPrompt.js',
+  './assets/js/i18n.js',
+  './assets/js/i18n/locales/zh-TW.js',
+  './assets/js/i18n/locales/zh-CN.js',
+  './assets/js/i18n/locales/ko.js',
+  './assets/js/i18n/locales/ja.js',
+  './assets/js/i18n/locales/sr-Latn.js',
+  './assets/js/i18n/locales/de.js',
+  './assets/js/i18n/locales/vi.js',
+  './assets/js/i18n/locales/id.js',
+  './assets/js/i18n/locales/fil.js',
+  './assets/js/i18n/locales/fr.js',
+  './assets/js/i18n/locales/it.js',
+  './assets/js/i18n/locales/es.js',
+  './assets/js/i18n/locales/th.js',
+  './assets/js/i18n/locales/hi.js',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
 ];
