@@ -5,13 +5,17 @@ import { DB } from './db.js';
 import { speakText } from './utils.js';
 import { addLongPressListener, syncVocabCardBookmark } from './vocab.js';
 import { audioEl, playBtn, ensureAudioReady } from './audioPlayer.js';
+import { t } from './i18n.js';
 
 export function renderContent(data, voiceName) {
     const metaEl = document.getElementById('articleMeta');
     metaEl.innerHTML = '';
     if (voiceName) {
         const opt = VOICE_OPTIONS.find(v => v.name === voiceName);
-        metaEl.innerHTML = `<span class="voice-badge">${ICONS.speaker} ${opt ? opt.label + ' · ' + opt.desc : voiceName}</span>`;
+        const voiceText = opt
+            ? `${t(opt.labelKey)} · ${t(opt.descKey)}`
+            : voiceName;
+        metaEl.innerHTML = `<span class="voice-badge">${ICONS.speaker} ${voiceText}</span>`;
     }
 
     const container = document.getElementById('articleContainer');
@@ -122,14 +126,14 @@ export function renderContent(data, voiceName) {
     const phraseTitle = document.getElementById('phraseSectionTitle');
     phraseContainer.innerHTML = '';
     if (data.phrases && data.phrases.length > 0) {
-        phraseTitle.textContent = '常用片語 Key Phrases';
+        phraseTitle.textContent = t('sectionPhrases');
         data.phrases.forEach(p => {
             const safePhrase = (p.phrase || '').replace(/'/g, "\\'");
             const safeEx = (p.example || '').replace(/'/g, "\\'");
             phraseContainer.innerHTML += `<div class="phrase-card"><div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${safePhrase}')" style="margin-left:6px;">${ICONS.speaker}</button></div><div class="phrase-meaning">${p.meaning}</div><div class="phrase-explanation">${p.explanation}</div><div class="phrase-example">"${p.example}"<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">${ICONS.speaker}</button></div>${p.example_zh ? `<div class="phrase-example-zh">${p.example_zh}</div>` : ''}</div>`;
         });
     } else if (data.grammar && data.grammar.length > 0) {
-        phraseTitle.textContent = '文法解析 Grammar Point';
+        phraseTitle.textContent = t('sectionGrammar');
         data.grammar.forEach(g => { phraseContainer.innerHTML += `<div class="grammar-item"><span class="grammar-bullet">•</span><span>${g}</span></div>`; });
     }
 
@@ -155,9 +159,9 @@ export function toggleEnglish() {
 export function updateToggleButtons() {
     const e = document.getElementById('btnToggleEn');
     const z = document.getElementById('btnToggleZh');
-    e.textContent = state.showEnglish ? '隱藏英文' : '顯示英文';
+    e.textContent = state.showEnglish ? t('btnHideEnglish') : t('btnShowEnglish');
     e.classList.toggle('active-toggle', !state.showEnglish);
-    z.textContent = state.showTranslation ? '隱藏中文' : '顯示中文';
+    z.textContent = state.showTranslation ? t('btnHideTranslation') : t('btnShowTranslation');
     z.classList.toggle('active-toggle', state.showTranslation);
 }
 

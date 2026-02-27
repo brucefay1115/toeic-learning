@@ -4,6 +4,7 @@ import { state, ICONS, SRS_INTERVALS, SRS_MIN_WORDS, SRS_MAX_WORDS, getNextRevie
 import { DB } from './db.js';
 import { fetchWordDetails } from './apiGemini.js';
 import { speakText } from './utils.js';
+import { t } from './i18n.js';
 
 let _startSrsReview = null;
 
@@ -80,16 +81,16 @@ function showWordModal(word) {
         } else {
             document.getElementById('wmPos').innerText = '';
             document.getElementById('wmIpa').innerText = '';
-            document.getElementById('wmDef').innerText = '尚無詳細資料';
+            document.getElementById('wmDef').innerText = t('vocabNoDetails');
             document.getElementById('wmEx').classList.add('hidden');
             document.getElementById('wmExZh').classList.add('hidden');
             const genBtn = document.createElement('button');
             genBtn.className = 'wm-btn';
             genBtn.style.marginTop = '0';
             genBtn.style.background = 'var(--accent)';
-            genBtn.innerHTML = `${ICONS.sparkle} AI 解析此單字`;
+            genBtn.innerHTML = `${ICONS.sparkle} ${t('vocabAiAnalyzeWord')}`;
             genBtn.onclick = async () => {
-                genBtn.disabled = true; genBtn.innerText = '生成中...';
+                genBtn.disabled = true; genBtn.innerText = t('loadingGenerating');
                 try {
                     const info = await fetchWordDetails(word);
                     document.getElementById('wmPos').innerText = info.pos;
@@ -109,7 +110,7 @@ function showWordModal(word) {
                     }
                     genBtn.remove();
                     await renderSaveButton(actionArea, word, info);
-                } catch (e) { genBtn.innerText = '生成失敗，請重試'; genBtn.disabled = false; alert(e.message); }
+                } catch (e) { genBtn.innerText = t('vocabGenerateFailedRetry'); genBtn.disabled = false; alert(e.message); }
             };
             actionArea.appendChild(genBtn);
         }
@@ -120,8 +121,8 @@ function showWordModal(word) {
 async function renderSaveButton(container, word, vocabItem) {
     const existing = await DB.getSavedWord(word.toLowerCase());
     const btn = document.createElement('button');
-    const setSaved = () => { btn.className = 'wm-btn saved-btn'; btn.innerHTML = `${ICONS.bookmarkFill} 已儲存`; };
-    const setUnsaved = () => { btn.className = 'wm-btn save-btn'; btn.innerHTML = `${ICONS.bookmark} 儲存到單字本`; };
+    const setSaved = () => { btn.className = 'wm-btn saved-btn'; btn.innerHTML = `${ICONS.bookmarkFill} ${t('vocabSaved')}`; };
+    const setUnsaved = () => { btn.className = 'wm-btn save-btn'; btn.innerHTML = `${ICONS.bookmark} ${t('vocabSaveToNotebook')}`; };
     if (existing) setSaved(); else setUnsaved();
     btn.onclick = async () => {
         if (await DB.getSavedWord(word.toLowerCase())) {
@@ -158,22 +159,22 @@ export function closeModal() {
 /* Vocabulary Tab */
 export async function renderVocabTab() {
     const words = await DB.getSavedWords();
-    document.getElementById('vocabCount').textContent = `${words.length} 個單字`;
+    document.getElementById('vocabCount').textContent = t('vocabCountLabel', { count: words.length });
     const dueWords = words.filter(w => w.nextReview <= Date.now());
     const entryEl = document.getElementById('srsReviewEntry');
     entryEl.innerHTML = '';
 
     if (words.length < SRS_MIN_WORDS) {
-        entryEl.innerHTML = `<div class="review-entry-card disabled"><h3>SRS 複習</h3><p>至少需要 ${SRS_MIN_WORDS} 個單字才能開始複習（目前 ${words.length} 個）</p></div>`;
+        entryEl.innerHTML = `<div class="review-entry-card disabled"><h3>${t('vocabSrsTitle')}</h3><p>${t('vocabSrsNeedMinimum', { min: SRS_MIN_WORDS, current: words.length })}</p></div>`;
     } else if (dueWords.length < SRS_MIN_WORDS) {
         const nextDue = words.filter(w => w.nextReview > Date.now()).sort((a, b) => a.nextReview - b.nextReview);
         const nextDate = nextDue.length > 0 ? new Date(nextDue[0].nextReview).toLocaleDateString() : '—';
-        entryEl.innerHTML = `<div class="review-entry-card disabled"><h3>SRS 複習</h3><p>待複習單字不足（需 ${SRS_MIN_WORDS} 個，目前 ${dueWords.length} 個）<br>下次複習：${nextDate}</p></div>`;
+        entryEl.innerHTML = `<div class="review-entry-card disabled"><h3>${t('vocabSrsTitle')}</h3><p>${t('vocabSrsDueInsufficient', { min: SRS_MIN_WORDS, current: dueWords.length })}<br>${t('vocabNextReviewLabel', { date: nextDate })}</p></div>`;
     } else {
         const reviewCount = Math.min(dueWords.length, SRS_MAX_WORDS);
         const card = document.createElement('button');
         card.className = 'review-entry-card';
-        card.innerHTML = `<h3>開始 SRS 複習</h3><p>${dueWords.length} 個待複習，本次複習 ${reviewCount} 個</p>`;
+        card.innerHTML = `<h3>${t('vocabSrsStartTitle')}</h3><p>${t('vocabSrsStartDesc', { dueCount: dueWords.length, reviewCount })}</p>`;
         card.onclick = () => { if (_startSrsReview) _startSrsReview(dueWords, words); };
         entryEl.appendChild(card);
     }
@@ -183,9 +184,9 @@ export async function renderVocabTab() {
         const clearBtn = document.createElement('button');
         clearBtn.className = 'review-entry-card';
         clearBtn.style.background = 'var(--success)';
-        clearBtn.innerHTML = `<h3>清除已熟練單字</h3><p>${lv5Words.length} 個已達 Lv.5，點擊一鍵移除</p>`;
+        clearBtn.innerHTML = `<h3>${t('vocabClearMasteredTitle')}</h3><p>${t('vocabClearMasteredDesc', { count: lv5Words.length })}</p>`;
         clearBtn.onclick = async () => {
-            if (!confirm(`確定移除 ${lv5Words.length} 個 Lv.5 單字？此操作無法復原。`)) return;
+            if (!confirm(t('vocabClearMasteredConfirm', { count: lv5Words.length }))) return;
             for (const w of lv5Words) {
                 await DB.deleteSavedWord(w.id);
                 syncVocabCardBookmark(w.en, false);
@@ -198,17 +199,17 @@ export async function renderVocabTab() {
     const listEl = document.getElementById('savedWordsList');
     listEl.innerHTML = '';
     if (words.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:var(--text-sub); padding: 30px 0;">尚無儲存單字<br><span style="font-size:13px;">長按文章中的單字，或按核心單字旁的書籤即可儲存</span></p>';
+        listEl.innerHTML = `<p style="text-align:center; color:var(--text-sub); padding: 30px 0;">${t('vocabEmpty')}<br><span style="font-size:13px;">${t('vocabEmptyHint')}</span></p>`;
         return;
     }
     words.sort((a, b) => a.level - b.level || a.nextReview - b.nextReview).forEach(w => {
         const card = document.createElement('div'); card.className = 'saved-word-card';
         const isOverdue = w.nextReview <= Date.now();
-        const dateStr = isOverdue ? '可複習' : new Date(w.nextReview).toLocaleDateString();
-        card.innerHTML = `<div class="saved-word-info"><div class="saved-word-top"><span class="saved-word-en">${w.en}</span>${w.pos ? `<span class="vocab-pos">${w.pos}</span>` : ''}<span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span></div><div class="saved-word-zh">${w.zh}</div><div class="saved-word-next">${isOverdue ? '⏰ ' : ''}下次複習：${dateStr}</div></div><div class="saved-word-actions"><button class="saved-word-speak">${ICONS.speaker}</button><button class="saved-word-delete">${ICONS.close}</button></div>`;
+        const dateStr = isOverdue ? t('vocabReadyForReview') : new Date(w.nextReview).toLocaleDateString();
+        card.innerHTML = `<div class="saved-word-info"><div class="saved-word-top"><span class="saved-word-en">${w.en}</span>${w.pos ? `<span class="vocab-pos">${w.pos}</span>` : ''}<span class="srs-badge srs-badge-${w.level}">Lv.${w.level}</span></div><div class="saved-word-zh">${w.zh}</div><div class="saved-word-next">${isOverdue ? '⏰ ' : ''}${t('vocabNextReviewLabel', { date: dateStr })}</div></div><div class="saved-word-actions"><button class="saved-word-speak">${ICONS.speaker}</button><button class="saved-word-delete">${ICONS.close}</button></div>`;
         card.querySelector('.saved-word-speak').onclick = () => speakText(w.en);
         card.querySelector('.saved-word-delete').onclick = async () => {
-            if (confirm(`確定刪除「${w.en}」？`)) {
+            if (confirm(t('vocabDeleteConfirm', { word: w.en }))) {
                 await DB.deleteSavedWord(w.id);
                 syncVocabCardBookmark(w.en, false);
                 renderVocabTab();

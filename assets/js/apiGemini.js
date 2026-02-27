@@ -2,6 +2,7 @@
 
 import { state, TEXT_MODEL, TTS_MODEL } from './state.js';
 import { DB } from './db.js';
+import { getLocaleMeta } from './i18n.js';
 
 function ensureCandidateText(data) {
     if (data?.error) throw new Error(data.error.message || 'Gemini API error');
@@ -29,6 +30,8 @@ async function fetchJsonFromPrompt(model, prompt) {
 }
 
 export async function fetchGeminiText(score, customTopic) {
+    const locale = getLocaleMeta();
+    const targetLang = `${locale.name} (${locale.inLocal})`;
     const topicLine = customTopic
         ? `about "${customTopic}" suitable for this level.`
         : `about a random business or daily life scenario suitable for this level.`;
@@ -37,9 +40,9 @@ export async function fetchGeminiText(score, customTopic) {
         Task: Generate a SHORT reading comprehension passage (approx 60-80 words, 30 seconds reading time) ${topicLine}
         Output JSON strictly:
         {
-            "segments": [{"en": "Sentence 1 English", "zh": "Sentence 1 Traditional Chinese Translation"}],
-            "vocabulary": [{"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "Chinese definition", "ex": "English example sentence ONLY (No Chinese translation, No special symbols)", "ex_zh": "Traditional Chinese translation of the example sentence"}],
-            "phrases": [{"phrase": "phrase from passage", "meaning": "Traditional Chinese meaning", "explanation": "Brief Traditional Chinese explanation", "example": "English example sentence", "example_zh": "Traditional Chinese translation of the example sentence"}]
+            "segments": [{"en": "Sentence 1 English", "zh": "Sentence 1 ${targetLang} translation"}],
+            "vocabulary": [{"word": "word", "pos": "v.", "ipa": "/ipa/", "def": "${targetLang} definition", "ex": "English example sentence ONLY (No translation, No special symbols)", "ex_zh": "${targetLang} translation of the example sentence"}],
+            "phrases": [{"phrase": "phrase from passage", "meaning": "${targetLang} meaning", "explanation": "Brief ${targetLang} explanation", "example": "English example sentence", "example_zh": "${targetLang} translation of the example sentence"}]
         }
         For "phrases": pick 2-3 commonly used phrases from the passage. Return ONLY raw JSON.
     `;
@@ -49,7 +52,9 @@ export async function fetchGeminiText(score, customTopic) {
 export async function fetchWordDetails(word) {
     const cached = await DB.getWord(word);
     if (cached) return cached;
-    const prompt = `Explain the word "${word}" for a TOEIC student. Keep it concise like a vocabulary card. Output JSON strictly: {"word":"${word}","pos":"part of speech (e.g. n./v./adj.)","ipa":"IPA symbol","def":"Brief Traditional Chinese definition (one short phrase)","ex":"One simple short English example sentence.","ex_zh":"Traditional Chinese translation of the example sentence"}`;
+    const locale = getLocaleMeta();
+    const targetLang = `${locale.name} (${locale.inLocal})`;
+    const prompt = `Explain the word "${word}" for a TOEIC student. Keep it concise like a vocabulary card. Output JSON strictly: {"word":"${word}","pos":"part of speech (e.g. n./v./adj.)","ipa":"IPA symbol","def":"Brief ${targetLang} definition (one short phrase)","ex":"One simple short English example sentence.","ex_zh":"${targetLang} translation of the example sentence"}`;
     const result = await fetchJsonFromPrompt(TEXT_MODEL, prompt);
     await DB.setWord(word, result);
     return result;
@@ -103,6 +108,8 @@ function normalizeExamOutput(raw) {
 }
 
 export async function fetchExamQuestions(score) {
+    const locale = getLocaleMeta();
+    const targetLang = `${locale.name} (${locale.inLocal})`;
     const prompt = `
         You are a TOEIC mock exam generator.
         Target score: ${score}.
@@ -122,7 +129,7 @@ export async function fetchExamQuestions(score) {
         - grammar must have exactly 3 questions.
         - Questions should match target score difficulty.
         - answer must be exactly one option string in options.
-        - Use Traditional Chinese for explanations if needed, but question can be English.
+        - Use ${targetLang} for explanations if needed, but question can be English.
         - Return raw JSON only.
     `;
     const raw = await fetchJsonFromPrompt(TEXT_MODEL, prompt);
@@ -130,20 +137,22 @@ export async function fetchExamQuestions(score) {
 }
 
 export async function fetchExamWrongAnswerExplanations(payload) {
+    const locale = getLocaleMeta();
+    const targetLang = `${locale.name} (${locale.inLocal})`;
     const prompt = `
-        你是 TOEIC 講解老師。請針對以下答錯題目逐題說明。
-        請輸出嚴格 JSON：
+        You are a TOEIC teacher. Explain each wrong answer one by one.
+        Output STRICT JSON:
         {
           "items":[
             {
-              "id":"題目 id",
-              "whyWrong":"為什麼原答案錯（繁中）",
-              "keyPoint":"正解關鍵（繁中）",
-              "trap":"常見陷阱（繁中）"
+              "id":"question id",
+              "whyWrong":"Why the selected answer is wrong (${targetLang})",
+              "keyPoint":"Key point for the correct answer (${targetLang})",
+              "trap":"Common trap (${targetLang})"
             }
           ]
         }
-        錯題資料如下：
+        Wrong-answer payload:
         ${JSON.stringify(payload)}
     `;
     const result = await fetchJsonFromPrompt(TEXT_MODEL, prompt);

@@ -2,6 +2,7 @@
 
 import { GoogleGenAI, Modality } from 'https://esm.run/@google/genai';
 import { LIVE_AUDIO_MODEL, state } from './state.js';
+import { t } from './i18n.js';
 
 const INPUT_MIME = 'audio/pcm;rate=16000';
 const MEDIA_RESOLUTION_LOW = 'MEDIA_RESOLUTION_LOW'; // ~66-70 tokens/image
@@ -101,7 +102,7 @@ function playPcm16Chunk(base64Data, sampleRate = 24000) {
 }
 
 async function connectLive(topic) {
-    emitStatus('正在連線語音服務...');
+    emitStatus(t('speakingConnecting'));
     const ai = new GoogleGenAI({ apiKey: state.apiKey });
     const config = {
         responseModalities: [Modality.AUDIO],
@@ -117,7 +118,7 @@ async function connectLive(topic) {
                 state.speakingState.isConnected = true;
                 emitConnected(true);
                 emitLog('system', `主題：${topic}`);
-                emitStatus('連線成功，準備啟用麥克風...');
+                emitStatus(t('speakingConnectedPreparingMic'));
             },
             onmessage: (message) => {
                 if (destroyed) return;
@@ -131,27 +132,27 @@ async function connectLive(topic) {
                 const audioParts = parts.filter(p => p?.inlineData?.data);
                 if (audioParts.length > 0) {
                     state.speakingState.isResponding = true;
-                    emitStatus('AI 回覆中...');
+                    emitStatus(t('speakingAiResponding'));
                     audioParts.forEach(part => playPcm16Chunk(part.inlineData.data, 24000));
                 }
                 if (message?.serverContent?.turnComplete) {
                     state.speakingState.isResponding = false;
-                    emitStatus('等待你說話...');
+                    emitStatus(t('speakingWaitingUser'));
                 }
             },
             onerror: (e) => {
-                emitStatus('連線發生錯誤: ' + (e?.message || 'unknown'));
+                emitStatus(t('speakingConnectionError', { message: e?.message || 'unknown' }));
             },
             onclose: (e) => {
                 state.speakingState.isConnected = false;
                 state.speakingState.isRecording = false;
                 emitConnected(false);
-                emitStatus('口說已停止: ' + (e?.reason || 'closed'));
+                emitStatus(t('speakingStoppedReason', { reason: e?.reason || 'closed' }));
             }
         }
     });
 
-    emitStatus('AI 準備先開場...');
+    emitStatus(t('speakingAiOpening'));
     state.speakingState.isResponding = true;
     liveSession.sendClientContent({
         turns: [{
@@ -220,19 +221,19 @@ async function setupMicStream() {
     if (audioCtx.state === 'suspended') await audioCtx.resume();
     try {
         await setupMicWithWorklet();
-        emitLog('system', 'AudioWorklet 已啟用');
+        emitLog('system', t('speakingAudioWorkletEnabled'));
     } catch (error) {
         console.warn('AudioWorklet unavailable, fallback ScriptProcessorNode', error);
         setupMicWithScriptProcessorFallback();
-        emitLog('system', 'AudioWorklet 不可用，已使用 ScriptProcessor 降級');
+        emitLog('system', t('speakingAudioWorkletFallback'));
     }
     state.speakingState.isRecording = true;
-    emitStatus('口說進行中，請直接對著麥克風說話');
+    emitStatus(t('speakingInProgress'));
 }
 
 export async function startSpeakingSession(topic, callbacks = {}) {
-    if (!state.apiKey) throw new Error('請先設定 API Key');
-    if (!topic) throw new Error('請先選擇或輸入主題');
+    if (!state.apiKey) throw new Error(t('alertSetApiKeyFirst'));
+    if (!topic) throw new Error(t('alertSelectTopicFirst'));
     if (liveSession || mediaStream) await stopSpeakingSession();
 
     listeners.status = callbacks.onStatus || null;

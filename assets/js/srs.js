@@ -3,6 +3,7 @@
 import { ICONS, SRS_INTERVALS, SRS_MAX_WORDS, getNextReviewTime } from './state.js';
 import { DB } from './db.js';
 import { shuffleArray, speakText, speakTextPromise } from './utils.js';
+import { t } from './i18n.js';
 
 let _onFinish = null;
 export function setOnFinish(fn) { _onFinish = fn; }
@@ -36,7 +37,7 @@ export function startSrsReview(dueWords, allWords) {
 }
 
 export function closeSrsReview() {
-    if (srsState.active && !confirm('確定離開？本次複習進度將不會儲存。')) return;
+    if (srsState.active && !confirm(t('srsLeaveConfirm'))) return;
     srsState.active = false;
     document.getElementById('srsOverlay').classList.add('hidden');
 }
@@ -47,7 +48,12 @@ function renderSrsQuestion() {
     const qArea = document.getElementById('srsQuestionArea');
     const oArea = document.getElementById('srsOptionsArea');
     document.getElementById('srsProgressText').textContent = `${srsState.currentQ + 1} / ${srsState.questions.length}`;
-    const typeLabels = { en2zh: '英文 → 中文', zh2en: '中文 → 英文', listen: '聽力測驗', listen3: '聽力測驗' };
+    const typeLabels = {
+        en2zh: t('srsTypeEnToZh'),
+        zh2en: t('srsTypeZhToEn'),
+        listen: t('srsTypeListening'),
+        listen3: t('srsTypeListening')
+    };
     document.getElementById('srsPhaseBadge').textContent = typeLabels[q.type];
     srsState.answered = false;
     qArea.innerHTML = ''; oArea.innerHTML = '';
@@ -55,16 +61,16 @@ function renderSrsQuestion() {
     const safeEn = word.en.replace(/'/g, "\\'");
 
     if (q.type === 'en2zh') {
-        qArea.innerHTML = `<div class="srs-question-hint">請選擇正確的中文翻譯</div><div class="srs-question-word">${word.en} <button class="mini-speaker" onclick="speakText('${safeEn}')">${ICONS.speaker}</button></div>`;
+        qArea.innerHTML = `<div class="srs-question-hint">${t('srsHintEnToZh')}</div><div class="srs-question-word">${word.en} <button class="mini-speaker" onclick="speakText('${safeEn}')">${ICONS.speaker}</button></div>`;
         setTimeout(() => speakText(word.en), 300);
         const opts = shuffleArray([word.zh, ...getDistractors(word, srsState.allWords, 'zh')]);
         opts.forEach(o => { const b = document.createElement('button'); b.className = 'srs-option'; b.textContent = o; b.onclick = () => handleSrsAnswer(b, o, word.zh, q.type); oArea.appendChild(b); });
     } else if (q.type === 'zh2en') {
-        qArea.innerHTML = `<div class="srs-question-hint">請選擇正確的英文單字</div><div class="srs-question-word">${word.zh}</div>`;
+        qArea.innerHTML = `<div class="srs-question-hint">${t('srsHintZhToEn')}</div><div class="srs-question-word">${word.zh}</div>`;
         const opts = shuffleArray([word.en, ...getDistractors(word, srsState.allWords, 'en')]);
         opts.forEach(o => { const b = document.createElement('button'); b.className = 'srs-option'; b.textContent = o; b.onclick = () => handleSrsAnswer(b, o, word.en, q.type); oArea.appendChild(b); });
     } else if (q.type === 'listen') {
-        qArea.innerHTML = `<div class="srs-question-hint">聽發音，選擇正確的中文翻譯</div><button class="srs-listen-btn" id="srsListenBtn">${ICONS.speaker}</button><div class="srs-reveal-word hidden" id="srsRevealWord"></div>`;
+        qArea.innerHTML = `<div class="srs-question-hint">${t('srsHintListenToZh')}</div><button class="srs-listen-btn" id="srsListenBtn">${ICONS.speaker}</button><div class="srs-reveal-word hidden" id="srsRevealWord"></div>`;
         document.getElementById('srsListenBtn').onclick = () => speakText(word.en);
         setTimeout(() => speakText(word.en), 300);
         const opts = shuffleArray([word.zh, ...getDistractors(word, srsState.allWords, 'zh')]);
@@ -79,7 +85,7 @@ function renderSrsQuestion() {
         const labels = ['A', 'B', 'C'];
         const correctLabel = labels[choices.findIndex(c => c.isCorrect)];
 
-        qArea.innerHTML = `<div class="srs-question-hint">聽發音，選擇正確的英文單字</div><div class="srs-question-word">${word.zh}</div><div class="srs-reveal-word hidden" id="srsRevealWord"></div><div class="srs-listen3-container">${choices.map((c, i) => `<div class="srs-listen3-item"><button class="srs-listen3-btn" data-label="${labels[i]}" data-word="${c.en.replace(/"/g, '&quot;')}">${ICONS.speaker}</button><div class="srs-listen3-label">${labels[i]}</div></div>`).join('')}</div>`;
+        qArea.innerHTML = `<div class="srs-question-hint">${t('srsHintListenToEn')}</div><div class="srs-question-word">${word.zh}</div><div class="srs-reveal-word hidden" id="srsRevealWord"></div><div class="srs-listen3-container">${choices.map((c, i) => `<div class="srs-listen3-item"><button class="srs-listen3-btn" data-label="${labels[i]}" data-word="${c.en.replace(/"/g, '&quot;')}">${ICONS.speaker}</button><div class="srs-listen3-label">${labels[i]}</div></div>`).join('')}</div>`;
 
         qArea.querySelectorAll('.srs-listen3-btn').forEach(btn => {
             btn.onclick = () => speakText(btn.dataset.word);
@@ -131,8 +137,8 @@ function handleSrsAnswer(btnEl, selected, correct, type) {
 async function showSrsResults() {
     const qArea = document.getElementById('srsQuestionArea');
     const oArea = document.getElementById('srsOptionsArea');
-    document.getElementById('srsProgressText').textContent = '完成';
-    document.getElementById('srsPhaseBadge').textContent = '結果';
+    document.getElementById('srsProgressText').textContent = t('srsDone');
+    document.getElementById('srsPhaseBadge').textContent = t('srsResult');
     let totalCorrect = 0;
     const wordResults = [];
     for (const word of srsState.words) {
@@ -149,7 +155,7 @@ async function showSrsResults() {
     }
     srsState.active = false;
     const total = srsState.words.length * 3;
-    qArea.innerHTML = `<div class="srs-result-score">${totalCorrect}/${total}</div><div class="srs-result-label">答對題數</div>`;
+    qArea.innerHTML = `<div class="srs-result-score">${totalCorrect}/${total}</div><div class="srs-result-label">${t('srsCorrectCount')}</div>`;
     oArea.innerHTML = '';
     wordResults.forEach(wr => {
         const diff = wr.newLevel - wr.oldLevel;
@@ -178,7 +184,7 @@ async function showSrsResults() {
 
         const meta = document.createElement('small');
         meta.className = 'srs-result-meta';
-        meta.textContent = `${wr.word.zh} · 下次複習 ${wr.nextDate}`;
+        meta.textContent = `${wr.word.zh} · ${t('srsNextReview', { date: wr.nextDate })}`;
 
         const exRow = document.createElement('div');
         exRow.className = 'srs-result-ex-row';
@@ -186,7 +192,7 @@ async function showSrsResults() {
         const ex = document.createElement('div');
         ex.className = 'srs-result-ex';
         const exText = wr.word.ex?.trim() || '';
-        ex.textContent = exText || '（無例句）';
+        ex.textContent = exText || t('srsNoExample');
 
         if (exText) {
             const exSpeakBtn = document.createElement('button');
@@ -199,7 +205,7 @@ async function showSrsResults() {
 
         const exZh = document.createElement('div');
         exZh.className = 'srs-result-ex-zh';
-        exZh.textContent = wr.word.ex_zh?.trim() || '（無中文例句）';
+        exZh.textContent = wr.word.ex_zh?.trim() || t('srsNoExampleZh');
 
         wordRow.appendChild(wordEl);
         wordRow.appendChild(speakBtn);
@@ -225,7 +231,7 @@ async function showSrsResults() {
     const doneBtn = document.createElement('button');
     doneBtn.type = 'button';
     doneBtn.className = 'srs-done-btn';
-    doneBtn.textContent = '完成';
+    doneBtn.textContent = t('srsDone');
     doneBtn.onclick = () => finishSrsReview();
     oArea.appendChild(doneBtn);
 }

@@ -30,7 +30,7 @@ export const state = {
     playUntilPct: null,
     playUntilSegmentIndex: null,
     speakingState: {
-        selectedTopic: '機場通關與登機',
+        selectedTopic: '',
         customTopic: '',
         finalTopic: '',
         isConnected: false,
@@ -68,12 +68,12 @@ export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const LIVE_AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
 export const VOICE_OPTIONS = [
-    { name: 'random', label: '隨機', desc: '每次不同' },
-    { name: 'Kore', label: 'Kore', desc: '清晰女聲' },
-    { name: 'Aoede', label: 'Aoede', desc: '柔和女聲' },
-    { name: 'Puck', label: 'Puck', desc: '活潑男聲' },
-    { name: 'Charon', label: 'Charon', desc: '沉穩男聲' },
-    { name: 'Fenrir', label: 'Fenrir', desc: '有力男聲' },
+    { name: 'random', labelKey: 'voiceOptionRandomLabel', descKey: 'voiceOptionRandomDesc' },
+    { name: 'Kore', labelKey: 'voiceOptionKoreLabel', descKey: 'voiceOptionKoreDesc' },
+    { name: 'Aoede', labelKey: 'voiceOptionAoedeLabel', descKey: 'voiceOptionAoedeDesc' },
+    { name: 'Puck', labelKey: 'voiceOptionPuckLabel', descKey: 'voiceOptionPuckDesc' },
+    { name: 'Charon', labelKey: 'voiceOptionCharonLabel', descKey: 'voiceOptionCharonDesc' },
+    { name: 'Fenrir', labelKey: 'voiceOptionFenrirLabel', descKey: 'voiceOptionFenrirDesc' },
 ];
 
 export const VOICE_NAMES = VOICE_OPTIONS.filter(v => v.name !== 'random').map(v => v.name);

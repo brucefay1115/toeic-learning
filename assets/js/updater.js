@@ -1,5 +1,7 @@
 // PWA Service Worker registration, automatic update, and post-update modal.
 
+import { t } from './i18n.js';
+
 const UPDATE_PENDING_KEY = 'update_ack_pending';
 const UPDATE_SHOWN_SESSION_KEY = 'update_prompt_shown_version';
 
@@ -79,12 +81,12 @@ function showUpdateModal(info, options = {}) {
   overlay.innerHTML = `
     <div class="update-modal">
       <div class="update-modal-icon">✓</div>
-      <h2 class="update-modal-title">已更新到版本 v${info.version}</h2>
+      <h2 class="update-modal-title">${t('updaterTitle', { version: info.version })}</h2>
       <ul class="update-modal-changes">
         ${info.changes.map((c) => `<li>${c}</li>`).join('')}
       </ul>
-      <p class="update-modal-notice">請完全關閉此 WebApp 後重新開啟，以確保更新生效</p>
-      <button class="update-modal-btn" id="btnUpdateAck">${acknowledgeOnClose ? '我知道了' : '關閉'}</button>
+      <p class="update-modal-notice">${t('updaterNotice')}</p>
+      <button class="update-modal-btn" id="btnUpdateAck">${acknowledgeOnClose ? t('updaterAck') : t('updaterClose')}</button>
     </div>
   `;
 

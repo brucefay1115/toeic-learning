@@ -1,13 +1,19 @@
 // Exam model helpers: normalize, render, grade, and explanation merge.
 
 import { fetchGeminiTTS } from './apiGemini.js';
+import { t } from './i18n.js';
 
-const SECTION_LABELS = {
-    listening: '聽力',
-    reading: '閱讀',
-    vocabulary: '單字',
-    grammar: '文法'
+const SECTION_LABEL_KEYS = {
+    listening: 'examSectionListening',
+    reading: 'examSectionReading',
+    vocabulary: 'examSectionVocabulary',
+    grammar: 'examSectionGrammar'
 };
+
+function getSectionLabel(section) {
+    const key = SECTION_LABEL_KEYS[section];
+    return key ? t(key) : section;
+}
 
 function uid() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -22,7 +28,7 @@ export function flattenExamQuestions(examData) {
             list.push({
                 id: q.id || `${section}-${index + 1}-${uid()}`,
                 section,
-                sectionLabel: SECTION_LABELS[section],
+                sectionLabel: getSectionLabel(section),
                 question: q.question || '',
                 passage: q.passage || '',
                 audioText: q.audioText || '',
@@ -55,7 +61,7 @@ export function renderExamQuestions(container, questions, answers) {
             lastReadingPassage = q.passage;
         }
         const listenBtn = q.section === 'listening'
-            ? `<button class="exam-option exam-listen-btn" data-action="listen" data-id="${escapeHtml(q.id)}">播放聽力題音訊</button>`
+            ? `<button class="exam-option exam-listen-btn" data-action="listen" data-id="${escapeHtml(q.id)}">${escapeHtml(t('examPlayListeningAudioBtn'))}</button>`
             : '';
         const options = q.options.map((opt) => {
             const active = answers[q.id] === opt ? 'active' : '';

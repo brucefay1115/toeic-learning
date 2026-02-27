@@ -6,7 +6,7 @@ import { DB } from './db.js';
 import { fetchGeminiText, fetchGeminiTTS, fetchExamQuestions, fetchExamWrongAnswerExplanations } from './apiGemini.js';
 import { DriveSync } from './driveSync.js';
 import { setupAudio } from './audioPlayer.js';
-import { renderContent, toggleEnglish, toggleTranslation } from './render.js';
+import { renderContent, toggleEnglish, toggleTranslation, updateToggleButtons } from './render.js';
 import { closeModal, renderVocabTab, setSrsTrigger } from './vocab.js';
 import { startSrsReview, closeSrsReview, finishSrsReview, setOnFinish } from './srs.js';
 import { saveToHistory, savePracticeRecord, renderHistory, loadSession, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
@@ -14,6 +14,7 @@ import { initUpdater } from './updater.js';
 import { initInstallPrompt } from './installPrompt.js';
 import { startSpeakingSession, stopSpeakingSession } from './speakingLive.js';
 import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload, playListeningQuestion } from './exam.js';
+import { SUPPORTED_LOCALES, applyTranslations, detectBrowserLocale, getLocale, setLocale, t } from './i18n.js';
 
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
@@ -147,43 +148,99 @@ renderScoreChips('examScoreSelector');
 
 /* ── Voice chips ── */
 const voiceSelector = document.getElementById('voiceSelector');
-VOICE_OPTIONS.forEach(opt => {
-    const chip = document.createElement('div');
-    chip.className = `voice-chip ${opt.name === state.selectedVoice ? 'active' : ''}`;
-    chip.innerHTML = `<span>${opt.label}</span><span class="voice-desc">${opt.desc}</span>`;
-    chip.onclick = () => {
-        state.selectedVoice = opt.name;
-        document.querySelectorAll('.voice-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-    };
-    voiceSelector.appendChild(chip);
-});
+function renderVoiceOptions() {
+    if (!voiceSelector) return;
+    voiceSelector.innerHTML = '';
+    VOICE_OPTIONS.forEach((opt) => {
+        const chip = document.createElement('div');
+        chip.className = `voice-chip ${opt.name === state.selectedVoice ? 'active' : ''}`;
+        chip.innerHTML = `<span>${t(opt.labelKey)}</span><span class="voice-desc">${t(opt.descKey)}</span>`;
+        chip.onclick = () => {
+            state.selectedVoice = opt.name;
+            document.querySelectorAll('.voice-chip').forEach((c) => c.classList.remove('active'));
+            chip.classList.add('active');
+        };
+        voiceSelector.appendChild(chip);
+    });
+}
+renderVoiceOptions();
 
 /* ── Settings / API Key modal ── */
 const keyModal = document.getElementById('keyModal');
+const localeSelect = document.getElementById('localeSelect');
 const APP_VERSION_CACHE_KEY = 'app_version_display';
+
+function populateLocaleSelector() {
+    if (!localeSelect) return;
+    localeSelect.innerHTML = '';
+    SUPPORTED_LOCALES.forEach((locale) => {
+        const opt = document.createElement('option');
+        opt.value = locale.code;
+        opt.textContent = locale.name;
+        localeSelect.appendChild(opt);
+    });
+    localeSelect.value = getLocale();
+}
+
+function applyLocaleToUI() {
+    applyTranslations(document);
+    document.title = t('appTitle');
+    renderVoiceOptions();
+    const activeTopicChip = document.querySelector('#speakingPresetGroup .topic-chip.active');
+    if (activeTopicChip?.dataset.topicKey) {
+        state.speakingState.selectedTopic = t(activeTopicChip.dataset.topicKey);
+    }
+    updateToggleButtons();
+    if (state.currentData?.phrases?.length) {
+        const phraseTitle = document.getElementById('phraseSectionTitle');
+        if (phraseTitle) phraseTitle.textContent = t('sectionPhrases');
+    } else if (state.currentData?.grammar?.length) {
+        const phraseTitle = document.getElementById('phraseSectionTitle');
+        if (phraseTitle) phraseTitle.textContent = t('sectionGrammar');
+    }
+    if (!state.speakingState.isConnected && !state.speakingState.isResponding) {
+        const statusEl = document.getElementById('speakingStatus');
+        if (statusEl && !activeSpeakingRecord) statusEl.textContent = t('speakingStatusStopped');
+    }
+}
+
+async function persistLocaleSelection(locale) {
+    const ts = Date.now();
+    await DB.setSetting('app_locale', locale);
+    await DB.setSetting('app_locale_updated_at', ts);
+    const history = await DB.getSetting('app_locale_history');
+    const list = Array.isArray(history) ? history : [];
+    list.unshift({ locale, ts });
+    await DB.setSetting('app_locale_history', list.slice(0, 30));
+}
 
 document.getElementById('btnSettings').onclick = () => {
     document.getElementById('apiKeyInput').value = state.apiKey;
     document.getElementById('btnCloseKeyModal').style.display = state.apiKey ? 'flex' : 'none';
+    if (localeSelect) localeSelect.value = getLocale();
     DriveSync.updateUI();
     keyModal.classList.add('active');
 };
 
-function saveApiKey() {
+async function saveApiKey() {
     const v = document.getElementById('apiKeyInput').value.trim();
-    if (v) { state.apiKey = v; DB.setSetting('gemini_api_key', v); keyModal.classList.remove('active'); }
-    else { alert('請輸入有效的 API Key'); }
+    if (!v) {
+        alert(t('alertInvalidApiKey'));
+        return;
+    }
+    state.apiKey = v;
+    await DB.setSetting('gemini_api_key', v);
+    keyModal.classList.remove('active');
 }
 
 async function clearApiKey() {
-    const confirmed = confirm('確定要清除已儲存的 API Key 嗎？');
+    const confirmed = confirm(t('confirmClearApiKey'));
     if (!confirmed) return;
     state.apiKey = '';
     document.getElementById('apiKeyInput').value = '';
     await DB.setSetting('gemini_api_key', null);
     document.getElementById('btnCloseKeyModal').style.display = 'none';
-    alert('API Key 已清除');
+    alert(t('alertApiKeyCleared'));
 }
 
 function safeLocalGet(key) {
@@ -197,6 +254,12 @@ function safeLocalSet(key, value) {
 function setAppVersionText(text) {
     const el = document.getElementById('appVersion');
     if (el) el.textContent = text;
+}
+
+function initPostLocalePrompts() {
+    // Keep this order: locale is already applied, then show prompt UIs.
+    initUpdater();
+    initInstallPrompt();
 }
 
 function setButtonLoading(button, loadingText, spinnerClass = 'loader') {
@@ -251,7 +314,7 @@ async function persistExamRecord(recordStage, options = {}) {
         type: 'exam',
         recordStage,
         attemptId: state.examState.attemptId,
-        title: '模擬考試',
+        title: t('examTitle'),
         score: state.targetScore,
         examSummary,
         examSnapshot: createExamSnapshot(),
@@ -288,7 +351,7 @@ function openExamRecordFromHistory(item) {
     document.querySelectorAll('#scoreSelector .score-chip, #examScoreSelector .score-chip').forEach(c => {
         c.classList.toggle('active', Number(c.innerText) === state.targetScore);
     });
-    EXAM_META.textContent = `目標分數 TOEIC ${state.targetScore} ・ 共 ${state.examState.questions.length} 題`;
+    EXAM_META.textContent = t('examMeta', { score: state.targetScore, count: state.examState.questions.length });
     renderExamQuestions(EXAM_CONTENT, state.examState.questions, state.examState.answers);
     if (state.examState.result) {
         renderExamResult();
@@ -314,7 +377,7 @@ function openSpeakingRecordFromHistory(item) {
     setPracticeMode('speaking');
     showSpeakingSessionView();
     document.getElementById('btnStopSpeaking').disabled = true;
-    document.getElementById('speakingStatus').textContent = item.finalStatus || '口說紀錄回看';
+    document.getElementById('speakingStatus').textContent = item.finalStatus || t('speakingRecordReview');
     const logEl = document.getElementById('speakingLog');
     logEl.innerHTML = '';
     logs.forEach((entry) => {
@@ -371,9 +434,20 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = () => switchTab(btn.dataset.tab);
 });
 document.querySelector('#wordModal .wm-btn.secondary').onclick = () => closeModal();
-document.getElementById('btnSaveApiKey').onclick = () => saveApiKey();
+document.getElementById('btnSaveApiKey').onclick = async () => saveApiKey();
 document.getElementById('btnClearApiKey').onclick = () => clearApiKey();
 document.getElementById('btnCloseKeyModal').onclick = () => keyModal.classList.remove('active');
+if (localeSelect) {
+    localeSelect.onchange = async (event) => {
+        const locale = setLocale(event.target.value);
+        applyLocaleToUI();
+        try {
+            await persistLocaleSelection(locale);
+        } catch (error) {
+            console.error('Persist locale failed:', error);
+        }
+    };
+}
 document.getElementById('btnCloudLogin').onclick = () => DriveSync.login();
 document.getElementById('btnBackupNow').onclick = () => DriveSync.backupNow();
 document.getElementById('btnRestore').onclick = () => DriveSync.restore();
@@ -420,7 +494,7 @@ function setSpeakingStatus(text) {
     }
 }
 
-async function finalizeSpeakingRecord(finalStatus = '口說已停止') {
+async function finalizeSpeakingRecord(finalStatus = t('speakingStatusStopped')) {
     if (!activeSpeakingRecord) return;
     activeSpeakingRecord.endedAt = Date.now();
     activeSpeakingRecord.durationMs = Math.max(0, activeSpeakingRecord.endedAt - activeSpeakingRecord.startedAt);
@@ -433,7 +507,7 @@ document.querySelectorAll('#speakingPresetGroup .topic-chip').forEach(chip => {
     chip.onclick = () => {
         document.querySelectorAll('#speakingPresetGroup .topic-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        state.speakingState.selectedTopic = chip.dataset.topic;
+        state.speakingState.selectedTopic = chip.dataset.topicKey ? t(chip.dataset.topicKey) : chip.dataset.topic;
     };
 });
 
@@ -442,7 +516,7 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
         const custom = document.getElementById('speakingCustomTopic').value.trim();
         state.speakingState.customTopic = custom;
         const topic = custom || state.speakingState.selectedTopic;
-        if (!topic) return alert('請先輸入或選擇主題');
+        if (!topic) return alert(t('alertSelectTopicFirst'));
         document.getElementById('speakingLog').innerHTML = '';
         activeSpeakingRecord = {
             id: createRecordId('speaking'),
@@ -455,13 +529,13 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
             startedAt: Date.now(),
             endedAt: null,
             durationMs: 0,
-            finalStatus: '正在初始化對話...',
+            finalStatus: t('speakingStatusInit'),
             recordStage: 'speaking_in_progress',
             logs: []
         };
         await persistSpeakingRecord();
         showSpeakingSessionView();
-        setSpeakingStatus('正在初始化對話...');
+        setSpeakingStatus(t('speakingStatusInit'));
         document.getElementById('btnStartSpeaking').disabled = true;
         document.getElementById('btnStopSpeaking').disabled = false;
         await startSpeakingSession(topic, {
@@ -473,9 +547,9 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
         });
     } catch (error) {
         console.error(error);
-        setSpeakingStatus('啟動失敗: ' + error.message);
+        setSpeakingStatus(t('speakingStartFailed', { message: error.message }));
         if (activeSpeakingRecord) {
-            await finalizeSpeakingRecord('口說啟動失敗');
+            await finalizeSpeakingRecord(t('speakingInitFailed'));
             activeSpeakingRecord = null;
         }
         document.getElementById('btnStartSpeaking').disabled = false;
@@ -486,16 +560,16 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
 
 document.getElementById('btnStopSpeaking').onclick = async () => {
     await stopSpeakingSession();
-    await finalizeSpeakingRecord('口說已停止');
+    await finalizeSpeakingRecord(t('speakingStatusStopped'));
     activeSpeakingRecord = null;
     document.getElementById('btnStartSpeaking').disabled = false;
     document.getElementById('btnStopSpeaking').disabled = true;
-    setSpeakingStatus('口說已停止');
+    setSpeakingStatus(t('speakingStatusStopped'));
 };
 document.getElementById('btnStopSpeaking').disabled = true;
 document.getElementById('btnSpeakingBack').onclick = async () => {
     await stopSpeakingSession();
-    await finalizeSpeakingRecord('已返回主題設定');
+    await finalizeSpeakingRecord(t('speakingBackToConfig'));
     activeSpeakingRecord = null;
     document.getElementById('btnStartSpeaking').disabled = false;
     document.getElementById('btnStopSpeaking').disabled = true;
@@ -531,7 +605,7 @@ function renderExamActions(stage = 'answering') {
     if (stage === 'answering') {
         const submitBtn = document.createElement('button');
         submitBtn.className = 'generate-btn';
-        submitBtn.textContent = '交卷';
+        submitBtn.textContent = t('examSubmit');
         submitBtn.onclick = handleSubmitExam;
         EXAM_ACTIONS.appendChild(submitBtn);
         return;
@@ -541,7 +615,7 @@ function renderExamActions(stage = 'answering') {
             || (Array.isArray(state.examState.explanations) && state.examState.explanations.length > 0);
         const explainBtn = document.createElement('button');
         explainBtn.className = 'generate-btn';
-        explainBtn.textContent = alreadyHasExplanation ? '錯題解說已生成' : '生成錯題解說';
+        explainBtn.textContent = alreadyHasExplanation ? t('examExplainDone') : t('examExplainGenerate');
         explainBtn.dataset.action = 'explain';
         explainBtn.onclick = handleExplainWrongAnswers;
         if (!state.examState.result?.wrongCount || alreadyHasExplanation) explainBtn.disabled = true;
@@ -572,26 +646,26 @@ function renderExamResult() {
     const by = result.bySection;
     const resultHtml = `
         <div class="exam-result">
-            <div><strong>總分：</strong>${result.correct} / ${result.total}</div>
-            <div>聽力 ${by.listening.correct}/${by.listening.total} ・ 閱讀 ${by.reading.correct}/${by.reading.total} ・ 單字 ${by.vocabulary.correct}/${by.vocabulary.total} ・ 文法 ${by.grammar.correct}/${by.grammar.total}</div>
-            <div>錯題數：${result.wrongCount}</div>
+            <div><strong>${t('examTotalScoreLabel')}:</strong> ${result.correct} / ${result.total}</div>
+            <div>${t('examSectionSummary', { lCorrect: by.listening.correct, lTotal: by.listening.total, rCorrect: by.reading.correct, rTotal: by.reading.total, vCorrect: by.vocabulary.correct, vTotal: by.vocabulary.total, gCorrect: by.grammar.correct, gTotal: by.grammar.total })}</div>
+            <div>${t('examWrongCountLabel', { count: result.wrongCount })}</div>
         </div>
     `;
     const wrongHtml = result.wrongItems.map((item) => {
         const explanation = state.examState.explanations?.find(x => x.id === item.id);
         const hasCachedAudio = !!state.examState.listeningAudioByQuestion?.[item.id];
         const reviewAudioBtn = hasCachedAudio
-            ? `<button class="mini-speaker exam-review-audio-btn" data-action="review-listen" data-id="${item.id}" title="播放已保存語音">${ICONS.speaker}</button>`
+            ? `<button class="mini-speaker exam-review-audio-btn" data-action="review-listen" data-id="${item.id}" title="${t('examReviewAudioTitle')}">${ICONS.speaker}</button>`
             : '';
         return `
             <div class="exam-wrong-item">
                 <div><strong>${item.section}</strong> - ${item.question}${reviewAudioBtn}</div>
-                <div>你的答案：${item.selected || '未作答'} / 正確答案：${item.answer}</div>
-                ${explanation ? `<div>為何錯：${explanation.whyWrong}</div><div>關鍵：${explanation.keyPoint}</div><div>陷阱：${explanation.trap}</div>` : ''}
+                <div>${t('examYourAnswer')}: ${item.selected || t('examNoAnswer')} / ${t('examCorrectAnswer')}: ${item.answer}</div>
+                ${explanation ? `<div>${t('examWhyWrong')}: ${explanation.whyWrong}</div><div>${t('examKeyPoint')}: ${explanation.keyPoint}</div><div>${t('examTrap')}: ${explanation.trap}</div>` : ''}
             </div>
         `;
     }).join('');
-    EXAM_CONTENT.innerHTML = `${resultHtml}<div class="exam-wrong-list">${wrongHtml || '<div class="exam-wrong-item">本次全對，太強了！</div>'}</div>`;
+    EXAM_CONTENT.innerHTML = `${resultHtml}<div class="exam-wrong-list">${wrongHtml || `<div class="exam-wrong-item">${t('examAllCorrect')}</div>`}</div>`;
 }
 
 async function handleSubmitExam() {
@@ -607,7 +681,7 @@ async function handleExplainWrongAnswers() {
     const result = state.examState.result;
     if (!result || !result.wrongCount) return;
     const explainBtn = document.querySelector('#examActions [data-action="explain"]');
-    const finishLoading = setButtonLoading(explainBtn, '生成中...', 'loader');
+    const finishLoading = setButtonLoading(explainBtn, t('loadingGenerating'), 'loader');
     try {
         const payload = buildWrongPayload(state.targetScore, result.wrongItems);
         state.examState.explanations = await fetchExamWrongAnswerExplanations(payload);
@@ -615,15 +689,15 @@ async function handleExplainWrongAnswers() {
         state.examState.explanationRecordSaved = true;
         renderExamResult();
     } catch (error) {
-        alert('生成錯題解說失敗: ' + error.message);
+        alert(t('alertExplainFailed', { message: error.message }));
     } finally {
         finishLoading();
     }
 }
 
 EXAM_BTN.onclick = async () => {
-    if (!state.apiKey) return alert('請先設定 API Key');
-    const finishLoading = setButtonLoading(EXAM_BTN, '生成題目中...');
+    if (!state.apiKey) return alert(t('alertSetApiKeyFirst'));
+    const finishLoading = setButtonLoading(EXAM_BTN, t('loadingGeneratingQuestions'));
     try {
         const examData = await fetchExamQuestions(state.targetScore);
         const questions = flattenExamQuestions(examData);
@@ -642,13 +716,13 @@ EXAM_BTN.onclick = async () => {
         state.examState.listeningAudioByQuestion = {};
         state.examState.explanationRecordSaved = false;
         await persistExamRecord('exam_generated', { includeSummary: false, explanationsOverride: null });
-        EXAM_META.textContent = `目標分數 TOEIC ${state.targetScore} ・ 共 ${questions.length} 題`;
+        EXAM_META.textContent = t('examMeta', { score: state.targetScore, count: questions.length });
         renderExamQuestions(EXAM_CONTENT, questions, state.examState.answers);
         renderExamActions('answering');
         showExamSessionView();
     } catch (error) {
         console.error(error);
-        alert('生成考題失敗: ' + error.message);
+        alert(t('alertGenerateFailed', { message: error.message }));
     } finally {
         finishLoading();
     }
@@ -663,12 +737,12 @@ EXAM_CONTENT.onclick = async (e) => {
         const qForReview = state.examState.questions.find(item => item.id === id);
         const cachedAudio = state.examState.listeningAudioByQuestion[id] || '';
         if (!qForReview || !cachedAudio) return;
-        const finishLoading = setButtonLoading(btn, '播放中...', 'loader loader-sm');
+        const finishLoading = setButtonLoading(btn, t('loadingPlaying'), 'loader loader-sm');
         try {
             await playListeningQuestion(qForReview, state.examState.voiceName || 'Kore', cachedAudio);
         } catch (error) {
             console.error(error);
-            alert('播放語音失敗: ' + error.message);
+            alert(t('alertPlaybackFailed', { message: error.message }));
         } finally {
             finishLoading();
         }
@@ -683,7 +757,7 @@ EXAM_CONTENT.onclick = async (e) => {
         return;
     }
     if (action === 'listen') {
-        const finishLoading = setButtonLoading(btn, '生成音訊中...', 'loader loader-sm');
+        const finishLoading = setButtonLoading(btn, t('loadingGeneratingAudio'), 'loader loader-sm');
         try {
             const cachedAudio = state.examState.listeningAudioByQuestion[id] || '';
             const result = await playListeningQuestion(q, state.examState.voiceName || 'Kore', cachedAudio);
@@ -695,11 +769,11 @@ EXAM_CONTENT.onclick = async (e) => {
                 }).catch((e) => console.error('Persist exam audio failed:', e));
             }
             if (result?.fallbackUsed) {
-                EXAM_META.textContent = 'Gemini 聽力語音暫時忙碌，已改用本機語音播放。';
+                EXAM_META.textContent = t('examFallbackTtsBusy');
             }
         } catch (error) {
             console.error(error);
-            alert('播放聽力題失敗: ' + error.message);
+            alert(t('alertPlaybackFailed', { message: error.message }));
         } finally {
             finishLoading();
         }
@@ -711,8 +785,8 @@ document.getElementById('btnExamBack').onclick = () => showExamConfigView();
 const GENERATE_BTN = document.getElementById('btnGenerate');
 
 GENERATE_BTN.onclick = async () => {
-    if (!state.apiKey) return alert('請先設定 API Key');
-    const finishLoading = setButtonLoading(GENERATE_BTN, '生成中...');
+    if (!state.apiKey) return alert(t('alertSetApiKeyFirst'));
+    const finishLoading = setButtonLoading(GENERATE_BTN, t('loadingGenerating'));
     document.getElementById('learningArea').classList.add('hidden');
     document.getElementById('playerBar').classList.add('hidden');
 
@@ -739,7 +813,7 @@ GENERATE_BTN.onclick = async () => {
         switchTab('learn');
     } catch (error) {
         console.error(error);
-        alert('發生錯誤: ' + error.message);
+        alert(t('alertGenerateFailed', { message: error.message }));
     } finally {
         finishLoading();
     }
@@ -751,6 +825,14 @@ GENERATE_BTN.onclick = async () => {
 
     try {
         await DB.init();
+        const savedLocale = await DB.getSetting('app_locale');
+        const initialLocale = savedLocale || detectBrowserLocale();
+        setLocale(initialLocale);
+        if (!savedLocale) {
+            await persistLocaleSelection(initialLocale);
+        }
+        populateLocaleSelector();
+        applyLocaleToUI();
         let apiKey = await DB.getSetting('gemini_api_key');
         if (!apiKey) {
             const lk = localStorage.getItem('gemini_api_key');
@@ -770,7 +852,6 @@ GENERATE_BTN.onclick = async () => {
             await DriveSync.silentLogin();
             DriveSync.updateUI();
         }
-        initUpdater();
-        initInstallPrompt();
+        initPostLocalePrompts();
     } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
 })();

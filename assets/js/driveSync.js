@@ -1,6 +1,7 @@
 // Google Drive appDataFolder backup/restore (manual actions only).
 
 import { DB } from './db.js';
+import { t } from './i18n.js';
 
 let _callbacks = { renderHistory: null, loadLastSession: null, renderVocabTab: null };
 
@@ -44,7 +45,7 @@ export const DriveSync = {
     async login() {
         if (!this.tokenClient) {
             this.init();
-            if (!this.tokenClient) { alert('Google Identity Services 尚未載入，請稍後再試。'); return false; }
+            if (!this.tokenClient) { alert(t('driveGisNotLoaded')); return false; }
         }
         const ok = await new Promise((resolve) => {
             this._pendingLoginResolve = resolve;
@@ -194,32 +195,32 @@ export const DriveSync = {
     },
 
     async backupNow() {
-        if (!this.isLoggedIn()) { alert('請先登入 Google 帳號'); return; }
+        if (!this.isLoggedIn()) { alert(t('driveLoginRequired')); return; }
         const btn = document.getElementById('btnBackupNow');
-        btn.disabled = true; btn.textContent = '備份中...';
+        btn.disabled = true; btn.textContent = t('driveBackupInProgress');
         try {
             const json = await this.exportData();
             await this.upload(json);
-            btn.textContent = '備份完成！';
-            setTimeout(() => { btn.textContent = '立即備份'; btn.disabled = false; }, 2000);
+            btn.textContent = t('driveBackupDone');
+            setTimeout(() => { btn.textContent = t('cloudBackupNowBtn'); btn.disabled = false; }, 2000);
         } catch (e) {
-            alert('備份失敗: ' + e.message);
-            btn.textContent = '立即備份'; btn.disabled = false;
+            alert(t('driveBackupFailed', { message: e.message }));
+            btn.textContent = t('cloudBackupNowBtn'); btn.disabled = false;
         }
     },
 
     async restore() {
-        if (!this.isLoggedIn()) { alert('請先登入 Google 帳號'); return; }
+        if (!this.isLoggedIn()) { alert(t('driveLoginRequired')); return; }
         const btn = document.getElementById('btnRestore');
-        btn.disabled = true; btn.textContent = '檢查中...';
+        btn.disabled = true; btn.textContent = t('driveRestoreChecking');
         try {
             const data = await this.download();
-            if (!data) { alert('雲端沒有找到備份資料'); btn.textContent = '從雲端還原'; btn.disabled = false; return; }
-            const date = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : '未知';
+            if (!data) { alert(t('driveRestoreNotFound')); btn.textContent = t('cloudRestoreBtn'); btn.disabled = false; return; }
+            const date = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : t('driveUnknownDate');
             this._showRestorePrompt(data, date, btn);
         } catch (e) {
-            alert('還原失敗: ' + e.message);
-            btn.textContent = '從雲端還原'; btn.disabled = false;
+            alert(t('driveRestoreFailed', { message: e.message }));
+            btn.textContent = t('cloudRestoreBtn'); btn.disabled = false;
         }
     },
 
@@ -227,19 +228,19 @@ export const DriveSync = {
         const overlay = document.createElement('div');
         overlay.className = 'restore-overlay';
         overlay.innerHTML = `<div class="restore-card">
-            <h3>偵測到雲端備份</h3>
-            <p>備份時間：${dateStr}<br>包含 ${(data.history || []).length} 筆學習紀錄、${(data.savedWords || []).length} 個單字</p>
+            <h3>${t('driveRestoreDetectedTitle')}</h3>
+            <p>${t('driveRestoreDetectedSummary', { date: dateStr, historyCount: (data.history || []).length, vocabCount: (data.savedWords || []).length })}</p>
             <div class="restore-btns">
-                <button class="btn-cancel">取消</button>
-                <button class="btn-restore">還原</button>
+                <button class="btn-cancel">${t('driveCancelBtn')}</button>
+                <button class="btn-restore">${t('driveRestoreBtn')}</button>
             </div>
         </div>`;
         overlay.querySelector('.btn-cancel').onclick = () => {
             overlay.remove();
-            if (triggerBtn) { triggerBtn.textContent = '從雲端還原'; triggerBtn.disabled = false; }
+            if (triggerBtn) { triggerBtn.textContent = t('cloudRestoreBtn'); triggerBtn.disabled = false; }
         };
         overlay.querySelector('.btn-restore').onclick = async () => {
-            overlay.querySelector('.btn-restore').textContent = '還原中...';
+            overlay.querySelector('.btn-restore').textContent = t('driveRestoring');
             overlay.querySelector('.btn-restore').disabled = true;
             try {
                 await this.importData(data);
@@ -247,12 +248,12 @@ export const DriveSync = {
                 if (_callbacks.renderHistory) _callbacks.renderHistory();
                 if (_callbacks.loadLastSession) await _callbacks.loadLastSession();
                 if (_callbacks.renderVocabTab) _callbacks.renderVocabTab();
-                if (triggerBtn) { triggerBtn.textContent = '從雲端還原'; triggerBtn.disabled = false; }
-                alert('還原成功！');
+                if (triggerBtn) { triggerBtn.textContent = t('cloudRestoreBtn'); triggerBtn.disabled = false; }
+                alert(t('driveRestoreSuccess'));
             } catch (e) {
-                alert('還原失敗: ' + e.message);
+                alert(t('driveRestoreFailed', { message: e.message }));
                 overlay.remove();
-                if (triggerBtn) { triggerBtn.textContent = '從雲端還原'; triggerBtn.disabled = false; }
+                if (triggerBtn) { triggerBtn.textContent = t('cloudRestoreBtn'); triggerBtn.disabled = false; }
             }
         };
         document.body.appendChild(overlay);
@@ -274,11 +275,13 @@ export const DriveSync = {
             document.getElementById('cloudUserEmail').textContent = email;
             document.getElementById('cloudAvatar').textContent = (name || 'G')[0].toUpperCase();
             const lastSync = await DB.getSetting('cloud_last_sync');
-            document.getElementById('cloudLastSync').textContent = lastSync ? `上次同步：${lastSync}` : '尚未同步';
+            document.getElementById('cloudLastSync').textContent = lastSync
+                ? t('driveLastSync', { value: lastSync })
+                : t('driveNotSynced');
             actionsEl.innerHTML = `
-                <button class="cloud-action-btn primary" id="btnBackupNow" onclick="DriveSync.backupNow()">立即備份</button>
-                <button class="cloud-action-btn" id="btnRestore" onclick="DriveSync.restore()">從雲端還原</button>
-                <button class="cloud-action-btn danger" id="btnCloudLogout" onclick="DriveSync.logout()">登出</button>`;
+                <button class="cloud-action-btn primary" id="btnBackupNow" onclick="DriveSync.backupNow()">${t('cloudBackupNowBtn')}</button>
+                <button class="cloud-action-btn" id="btnRestore" onclick="DriveSync.restore()">${t('cloudRestoreBtn')}</button>
+                <button class="cloud-action-btn danger" id="btnCloudLogout" onclick="DriveSync.logout()">${t('cloudLogoutBtn')}</button>`;
         } else {
             authArea.classList.remove('hidden');
             userArea.classList.add('hidden');
