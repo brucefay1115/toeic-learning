@@ -13,7 +13,8 @@ export const SUPPORTED_LOCALES = [
     { code: 'fr', name: 'Francais' },
     { code: 'it', name: 'Italiano' },
     { code: 'es', name: 'Espanol' },
-    { code: 'th', name: 'ไทย' }
+    { code: 'th', name: 'ไทย' },
+    { code: 'hi', name: 'हिन्दी' }
 ];
 
 const LOCALE_META = {
@@ -29,7 +30,8 @@ const LOCALE_META = {
     fr: { name: 'French', inLocal: 'Francais' },
     it: { name: 'Italian', inLocal: 'Italiano' },
     es: { name: 'Spanish', inLocal: 'Espanol' },
-    th: { name: 'Thai', inLocal: 'ไทย' }
+    th: { name: 'Thai', inLocal: 'ไทย' },
+    hi: { name: 'Hindi', inLocal: 'हिन्दी' }
 };
 
 import ZH_TW from './i18n/locales/zh-TW.js';
@@ -45,6 +47,7 @@ import FR from './i18n/locales/fr.js';
 import IT from './i18n/locales/it.js';
 import ES from './i18n/locales/es.js';
 import TH from './i18n/locales/th.js';
+import HI from './i18n/locales/hi.js';
 
 function withZhTwDefaults(localePack) {
     return { ...ZH_TW, ...localePack };
@@ -63,7 +66,8 @@ const TRANSLATIONS = {
     fr: withZhTwDefaults(FR),
     it: withZhTwDefaults(IT),
     es: withZhTwDefaults(ES),
-    th: withZhTwDefaults(TH)
+    th: withZhTwDefaults(TH),
+    hi: withZhTwDefaults(HI)
 };
 
 let currentLocale = DEFAULT_LOCALE;
@@ -106,6 +110,7 @@ export function detectBrowserLocale() {
         if (lower.startsWith('it')) return 'it';
         if (lower.startsWith('es')) return 'es';
         if (lower.startsWith('th')) return 'th';
+        if (lower.startsWith('hi')) return 'hi';
     }
 
     return DEFAULT_LOCALE;
