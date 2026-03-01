@@ -34,7 +34,7 @@ export async function fetchGeminiText(score, customTopic) {
     const targetLang = `${locale.name} (${locale.inLocal})`;
     const topicLine = customTopic
         ? `about "${customTopic}" suitable for this level.`
-        : `about a random business or daily life scenario suitable for this level.`;
+        : `about one random TOEIC-friendly scenario from this range: office communication, meetings, email updates, travel arrangements, customer service, logistics and shipping, human resources, marketing campaigns, product launches, scheduling conflicts, workplace problem-solving, announcements, and professional daily-life errands.`;
     const prompt = `
         You are a strict TOEIC tutor. Target Score: ${score}.
         Task: Generate a SHORT reading comprehension passage (approx 60-80 words, 30 seconds reading time) ${topicLine}
@@ -61,14 +61,41 @@ export async function fetchWordDetails(word) {
 }
 
 function normalizeExamQuestion(category, item, idx) {
-    const options = Array.isArray(item.options) ? item.options.slice(0, 4) : [];
+    const rawOptions = Array.isArray(item.options) ? item.options.slice(0, 4) : [];
+    const options = rawOptions.map((option, optionIndex) => {
+        const fallbackKey = ['A', 'B', 'C', 'D'][optionIndex] || `O${optionIndex + 1}`;
+        if (typeof option === 'object' && option !== null) {
+            return {
+                key: String(option.key || fallbackKey).trim().toUpperCase(),
+                text: String(option.text || option.label || option.value || fallbackKey).trim()
+            };
+        }
+        const text = String(option || '').trim();
+        const parsed = text.match(/^([A-D])[\s.)\-:]+(.+)$/i);
+        if (parsed) {
+            return { key: parsed[1].toUpperCase(), text: parsed[2].trim() };
+        }
+        if (/^[A-D]$/i.test(text)) {
+            return { key: text.toUpperCase(), text: text.toUpperCase() };
+        }
+        return { key: fallbackKey, text: text || fallbackKey };
+    });
+    const providedAnswerKey = String(item.answerKey || '').trim().toUpperCase();
+    const legacyAnswer = String(item.answer || '').trim();
+    const matchedByKey = options.find((opt) => opt.key === providedAnswerKey);
+    const matchedLegacyKey = options.find((opt) => opt.key === legacyAnswer.toUpperCase());
+    const matchedByText = options.find((opt) => opt.text === legacyAnswer);
+    const answerKey = matchedByKey?.key || matchedLegacyKey?.key || matchedByText?.key || options[0]?.key || 'A';
+    const answerText = options.find((opt) => opt.key === answerKey)?.text || '';
     return {
         id: item.id || `${category}-${idx + 1}`,
         category,
         question: item.question || '',
         passage: item.passage || '',
         options,
-        answer: item.answer || options[0] || '',
+        answerKey,
+        answerText,
+        answer: item.answer || answerKey,
         audioText: item.audioText || '',
         explanationSeed: item.explanationSeed || ''
     };
@@ -115,10 +142,10 @@ export async function fetchExamQuestions(score) {
         Target score: ${score}.
         Output STRICT JSON only with this shape:
         {
-          "listening": [{"id":"L1","question":"...","audioText":"text to speak","options":["A","B","C","D"],"answer":"A","explanationSeed":"..."}],
-          "reading": [{"id":"R1","passage":"...","question":"...","options":["A","B","C","D"],"answer":"A","explanationSeed":"..."}],
-          "vocabulary": [{"id":"V1","question":"...","options":["A","B","C","D"],"answer":"A","explanationSeed":"..."}],
-          "grammar": [{"id":"G1","question":"...","options":["A","B","C","D"],"answer":"A","explanationSeed":"..."}]
+          "listening": [{"id":"L1","question":"...","audioText":"text to speak","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"answerKey":"A","explanationSeed":"..."}],
+          "reading": [{"id":"R1","passage":"...","question":"...","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"answerKey":"A","explanationSeed":"..."}],
+          "vocabulary": [{"id":"V1","question":"...","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"answerKey":"A","explanationSeed":"..."}],
+          "grammar": [{"id":"G1","question":"...","options":[{"key":"A","text":"..."},{"key":"B","text":"..."},{"key":"C","text":"..."},{"key":"D","text":"..."}],"answerKey":"A","explanationSeed":"..."}]
         }
         Rules:
         - listening must have exactly 3 questions.
@@ -128,7 +155,8 @@ export async function fetchExamQuestions(score) {
         - vocabulary must have exactly 3 questions.
         - grammar must have exactly 3 questions.
         - Questions should match target score difficulty.
-        - answer must be exactly one option string in options.
+        - options must contain meaningful English option text, not only letters.
+        - answerKey must be exactly one option key from options.
         - Use ${targetLang} for explanations if needed, but question can be English.
         - Return raw JSON only.
     `;

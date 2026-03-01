@@ -3,6 +3,7 @@
 import { fetchGeminiTTS } from './apiGemini.js';
 import { t } from './i18n.js';
 
+const OPTION_KEYS = ['A', 'B', 'C', 'D'];
 const SECTION_LABEL_KEYS = {
     listening: 'examSectionListening',
     reading: 'examSectionReading',
@@ -19,12 +20,86 @@ function uid() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function normalizeKey(value) {
+    const raw = String(value || '').trim().toUpperCase();
+    if (!raw) return '';
+    if (OPTION_KEYS.includes(raw)) return raw;
+    const matched = raw.match(/^([A-D])(?:[\s.)\-:].*)?$/);
+    return matched ? matched[1] : '';
+}
+
+function parseLegacyOptionString(value) {
+    const raw = String(value || '').trim();
+    const matched = raw.match(/^([A-D])[\s.)\-:]+(.+)$/i);
+    if (!matched) return null;
+    return {
+        key: matched[1].toUpperCase(),
+        text: matched[2].trim()
+    };
+}
+
+function normalizeOption(option, index) {
+    const defaultKey = OPTION_KEYS[index] || `O${index + 1}`;
+    if (typeof option === 'object' && option !== null) {
+        const key = normalizeKey(option.key) || defaultKey;
+        const text = String(option.text || option.label || option.value || key).trim() || key;
+        return { key, text };
+    }
+    const raw = String(option || '').trim();
+    const legacy = parseLegacyOptionString(raw);
+    if (legacy) return legacy;
+    const key = normalizeKey(raw) || defaultKey;
+    const text = raw || key;
+    return { key, text };
+}
+
+export function getQuestionOptions(question) {
+    const source = Array.isArray(question?.options) ? question.options.slice(0, 4) : [];
+    return source.map((opt, idx) => normalizeOption(opt, idx));
+}
+
+function resolveAnswerKey(question, options) {
+    const direct = normalizeKey(question?.answerKey);
+    if (direct && options.some((opt) => opt.key === direct)) return direct;
+    const legacy = normalizeKey(question?.answer);
+    if (legacy && options.some((opt) => opt.key === legacy)) return legacy;
+    const answerText = String(question?.answer || '').trim();
+    const byText = options.find((opt) => opt.text === answerText);
+    if (byText) return byText.key;
+    return options[0]?.key || '';
+}
+
+function getChoiceLabel(choice) {
+    if (!choice) return '';
+    if (!choice.text || choice.text === choice.key) return choice.key;
+    return `${choice.key}. ${choice.text}`;
+}
+
+export function resolveChoice(question, rawValue) {
+    const raw = String(rawValue || '').trim();
+    if (!raw) return null;
+    const options = getQuestionOptions(question);
+    const key = normalizeKey(raw);
+    if (key) {
+        const byKey = options.find((opt) => opt.key === key);
+        if (byKey) return byKey;
+    }
+    const byText = options.find((opt) => opt.text === raw);
+    if (byText) return byText;
+    const byLabel = options.find((opt) => getChoiceLabel(opt) === raw);
+    if (byLabel) return byLabel;
+    return { key, text: raw };
+}
+
 export function flattenExamQuestions(examData) {
     const list = [];
     ['listening', 'reading', 'vocabulary', 'grammar'].forEach((section) => {
         const rows = Array.isArray(examData?.[section]) ? examData[section] : [];
         const max = 3;
         rows.slice(0, max).forEach((q, index) => {
+            const options = getQuestionOptions(q);
+            const answerKey = resolveAnswerKey(q, options);
+            const answerChoice = options.find((opt) => opt.key === answerKey) || null;
             list.push({
                 id: q.id || `${section}-${index + 1}-${uid()}`,
                 section,
@@ -32,8 +107,10 @@ export function flattenExamQuestions(examData) {
                 question: q.question || '',
                 passage: q.passage || '',
                 audioText: q.audioText || '',
-                options: Array.isArray(q.options) ? q.options.slice(0, 4) : [],
-                answer: q.answer || '',
+                options,
+                answerKey,
+                answerText: answerChoice?.text || '',
+                answer: q.answer || q.answerKey || answerKey,
                 explanationSeed: q.explanationSeed || ''
             });
         });
@@ -55,6 +132,9 @@ export function renderExamQuestions(container, questions, answers) {
     let lastReadingPassage = '';
     questions.forEach((q, index) => {
         const sectionBadge = `<div class="exam-question-type">${escapeHtml(q.sectionLabel)}</div>`;
+        const selectedChoice = resolveChoice(q, answers[q.id]);
+        const selectedKey = selectedChoice?.key || '';
+        const options = getQuestionOptions(q);
         let passage = '';
         if (q.section === 'reading' && q.passage && q.passage !== lastReadingPassage) {
             passage = `<div class="exam-passage">${escapeHtml(q.passage)}</div>`;
@@ -63,9 +143,10 @@ export function renderExamQuestions(container, questions, answers) {
         const listenBtn = q.section === 'listening'
             ? `<button class="exam-option exam-listen-btn" data-action="listen" data-id="${escapeHtml(q.id)}">${escapeHtml(t('examPlayListeningAudioBtn'))}</button>`
             : '';
-        const options = q.options.map((opt) => {
-            const active = answers[q.id] === opt ? 'active' : '';
-            return `<button class="exam-option ${active}" data-action="answer" data-id="${escapeHtml(q.id)}" data-option="${escapeHtml(opt)}">${escapeHtml(opt)}</button>`;
+        const optionsHtml = options.map((opt) => {
+            const active = selectedKey && selectedKey === opt.key ? 'active' : '';
+            const label = getChoiceLabel(opt);
+            return `<button class="exam-option ${active}" data-action="answer" data-id="${escapeHtml(q.id)}" data-option-key="${escapeHtml(opt.key)}">${escapeHtml(label)}</button>`;
         }).join('');
         const card = document.createElement('div');
         card.className = 'exam-question';
@@ -74,7 +155,7 @@ export function renderExamQuestions(container, questions, answers) {
             <div class="exam-question-title">Q${index + 1}. ${escapeHtml(q.question)}</div>
             ${passage}
             ${listenBtn}
-            <div class="exam-options">${options}</div>
+            <div class="exam-options">${optionsHtml}</div>
         `;
         container.appendChild(card);
     });
@@ -90,19 +171,30 @@ export function gradeExam(questions, answers) {
     const wrongItems = [];
     let correct = 0;
     questions.forEach((q) => {
-        const selected = answers[q.id];
-        const isCorrect = selected === q.answer;
-        bySection[q.section].total += 1;
+        const options = getQuestionOptions(q);
+        const answerKey = resolveAnswerKey(q, options);
+        const answerChoice = options.find((opt) => opt.key === answerKey) || null;
+        const selectedChoice = resolveChoice(q, answers[q.id]);
+        const selectedKey = selectedChoice?.key || '';
+        const selectedText = selectedChoice?.text || '';
+        const isCorrect = !!selectedKey && selectedKey === answerKey;
+        const sectionBucket = bySection[q.section];
+        if (!sectionBucket) return;
+        sectionBucket.total += 1;
         if (isCorrect) {
-            bySection[q.section].correct += 1;
+            sectionBucket.correct += 1;
             correct += 1;
         } else {
             wrongItems.push({
                 id: q.id,
                 section: q.section,
                 question: q.question,
-                selected: selected || '',
-                answer: q.answer,
+                selected: selectedKey || String(answers[q.id] || ''),
+                selectedKey,
+                selectedText,
+                answer: answerKey || q.answer || '',
+                answerKey,
+                answerText: answerChoice?.text || '',
                 explanationSeed: q.explanationSeed || ''
             });
         }
@@ -123,8 +215,12 @@ export function buildWrongPayload(score, wrongItems) {
             id: item.id,
             section: item.section,
             question: item.question,
-            selected: item.selected,
-            answer: item.answer,
+            selected: item.selectedText ? `${item.selectedKey}. ${item.selectedText}` : (item.selected || ''),
+            selectedKey: item.selectedKey || '',
+            selectedText: item.selectedText || '',
+            answer: item.answerText ? `${item.answerKey}. ${item.answerText}` : (item.answer || ''),
+            answerKey: item.answerKey || item.answer || '',
+            answerText: item.answerText || '',
             hint: item.explanationSeed
         }))
     };

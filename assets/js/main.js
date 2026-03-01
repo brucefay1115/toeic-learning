@@ -13,7 +13,7 @@ import { saveToHistory, savePracticeRecord, renderHistory, loadSession, loadLast
 import { initUpdater } from './updater.js';
 import { initInstallPrompt } from './installPrompt.js';
 import { startSpeakingSession, stopSpeakingSession } from './speakingLive.js';
-import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload, playListeningQuestion } from './exam.js';
+import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload, playListeningQuestion, resolveChoice } from './exam.js';
 import { SUPPORTED_LOCALES, applyTranslations, detectBrowserLocale, getLocale, setLocale, t } from './i18n.js';
 
 /* ── Wire cross-module callbacks ── */
@@ -123,6 +123,37 @@ document.querySelectorAll('.practice-mode-btn').forEach(btn => {
     btn.onclick = () => setPracticeMode(btn.dataset.mode);
 });
 
+/* ── Speaking level chips ── */
+const SPEAKING_LEVELS = ['beginner', 'intermediate', 'advanced'];
+
+function getSpeakingLevelByScore(score) {
+    const numericScore = Number(score) || 700;
+    if (numericScore <= 600) return 'beginner';
+    if (numericScore === 700) return 'intermediate';
+    return 'advanced';
+}
+
+function renderSpeakingLevelSwitch() {
+    const fallbackLevel = getSpeakingLevelByScore(state.targetScore);
+    if (!SPEAKING_LEVELS.includes(state.speakingState.level)) {
+        state.speakingState.level = fallbackLevel;
+    }
+    document.querySelectorAll('#speakingLevelSwitch .speaking-level-chip').forEach((btn) => {
+        const isActive = btn.dataset.level === state.speakingState.level;
+        btn.classList.toggle('active', isActive);
+    });
+}
+
+document.querySelectorAll('#speakingLevelSwitch .speaking-level-chip').forEach((btn) => {
+    btn.onclick = () => {
+        const level = btn.dataset.level;
+        if (!SPEAKING_LEVELS.includes(level)) return;
+        state.speakingState.level = level;
+        state.speakingState.levelManuallySelected = true;
+        renderSpeakingLevelSwitch();
+    };
+});
+
 /* ── Score chips (article + exam shared) ── */
 const scores = [500, 600, 700, 800, 900];
 function renderScoreChips(containerId) {
@@ -139,12 +170,20 @@ function renderScoreChips(containerId) {
             document.querySelectorAll('#scoreSelector .score-chip, #examScoreSelector .score-chip').forEach(c => {
                 c.classList.toggle('active', Number(c.innerText) === score);
             });
+            if (!state.speakingState.levelManuallySelected) {
+                state.speakingState.level = getSpeakingLevelByScore(score);
+                renderSpeakingLevelSwitch();
+            }
         };
         el.appendChild(chip);
     });
 }
 renderScoreChips('scoreSelector');
 renderScoreChips('examScoreSelector');
+if (!state.speakingState.level) {
+    state.speakingState.level = getSpeakingLevelByScore(state.targetScore);
+}
+renderSpeakingLevelSwitch();
 
 /* ── Voice chips ── */
 const voiceSelector = document.getElementById('voiceSelector');
@@ -186,6 +225,7 @@ function applyLocaleToUI() {
     applyTranslations(document);
     document.title = t('appTitle');
     renderVoiceOptions();
+    renderSpeakingLevelSwitch();
     const activeTopicChip = document.querySelector('#speakingPresetGroup .topic-chip.active');
     if (activeTopicChip?.dataset.topicKey) {
         state.speakingState.selectedTopic = t(activeTopicChip.dataset.topicKey);
@@ -525,6 +565,7 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
             date: new Date().toLocaleDateString(),
             title: topic,
             score: state.targetScore,
+            speakingLevel: state.speakingState.level,
             topic,
             startedAt: Date.now(),
             endedAt: null,
@@ -538,7 +579,7 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
         setSpeakingStatus(t('speakingStatusInit'));
         document.getElementById('btnStartSpeaking').disabled = true;
         document.getElementById('btnStopSpeaking').disabled = false;
-        await startSpeakingSession(topic, {
+        await startSpeakingSession({ topic, score: state.targetScore, level: state.speakingState.level }, {
             onStatus: (s) => setSpeakingStatus(s),
             onLog: (role, text) => appendSpeakingLog(role, text),
             onConnected: (connected) => {
@@ -640,6 +681,26 @@ function buildExamSnapshot(result) {
     return createExamSnapshot(result);
 }
 
+function formatChoiceLabel(choice, fallback = '') {
+    if (!choice?.key && !choice?.text) return fallback;
+    if (!choice?.text || choice.text === choice.key) return choice.key || fallback;
+    if (!choice?.key) return choice.text || fallback;
+    return `${choice.key}. ${choice.text}`;
+}
+
+function resolveResultChoiceLabel(item, type) {
+    const question = state.examState.questions.find((q) => q.id === item.id);
+    const isSelected = type === 'selected';
+    const value = isSelected
+        ? (item.selectedKey || item.selected || '')
+        : (item.answerKey || item.answer || '');
+    const fallback = isSelected
+        ? (item.selectedText ? formatChoiceLabel({ key: item.selectedKey, text: item.selectedText }, item.selected) : (item.selected || ''))
+        : (item.answerText ? formatChoiceLabel({ key: item.answerKey, text: item.answerText }, item.answer) : (item.answer || ''));
+    const resolved = question ? resolveChoice(question, value) : null;
+    return formatChoiceLabel(resolved, fallback);
+}
+
 function renderExamResult() {
     const result = state.examState.result;
     if (!result) return;
@@ -660,7 +721,8 @@ function renderExamResult() {
         return `
             <div class="exam-wrong-item">
                 <div><strong>${item.section}</strong> - ${item.question}${reviewAudioBtn}</div>
-                <div>${t('examYourAnswer')}: ${item.selected || t('examNoAnswer')} / ${t('examCorrectAnswer')}: ${item.answer}</div>
+                <div>${t('examYourAnswer')}: ${resolveResultChoiceLabel(item, 'selected') || t('examNoAnswer')}</div>
+                <div>${t('examCorrectAnswer')}: ${resolveResultChoiceLabel(item, 'answer') || t('examNoAnswer')}</div>
                 ${explanation ? `<div>${t('examWhyWrong')}: ${explanation.whyWrong}</div><div>${t('examKeyPoint')}: ${explanation.keyPoint}</div><div>${t('examTrap')}: ${explanation.trap}</div>` : ''}
             </div>
         `;
@@ -680,6 +742,12 @@ async function handleSubmitExam() {
 async function handleExplainWrongAnswers() {
     const result = state.examState.result;
     if (!result || !result.wrongCount) return;
+    const alreadyHasExplanation = state.examState.explanationRecordSaved
+        || (Array.isArray(state.examState.explanations) && state.examState.explanations.length > 0);
+    if (alreadyHasExplanation) {
+        renderExamActions('graded');
+        return;
+    }
     const explainBtn = document.querySelector('#examActions [data-action="explain"]');
     const finishLoading = setButtonLoading(explainBtn, t('loadingGenerating'), 'loader');
     try {
@@ -688,6 +756,7 @@ async function handleExplainWrongAnswers() {
         await persistExamRecord('explanations_generated', { includeSummary: true, explanationsOverride: state.examState.explanations });
         state.examState.explanationRecordSaved = true;
         renderExamResult();
+        renderExamActions('graded');
     } catch (error) {
         alert(t('alertExplainFailed', { message: error.message }));
     } finally {
@@ -751,7 +820,7 @@ EXAM_CONTENT.onclick = async (e) => {
     const q = state.examState.questions.find(item => item.id === id);
     if (!q || state.examState.result) return;
     if (action === 'answer') {
-        state.examState.answers[id] = btn.dataset.option;
+        state.examState.answers[id] = btn.dataset.optionKey || btn.dataset.option || '';
         persistExamRecord('exam_generated', { includeSummary: false, explanationsOverride: state.examState.explanations || null }).catch((e) => console.error('Persist exam answer failed:', e));
         renderExamQuestions(EXAM_CONTENT, state.examState.questions, state.examState.answers);
         return;

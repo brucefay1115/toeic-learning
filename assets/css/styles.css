@@ -346,6 +346,8 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     background: transparent;
     color: var(--text-sub);
     font-weight: 600;
+    font-size: 16px;
+    line-height: 1.25;
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -357,6 +359,9 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
 .practice-mode-panel { margin-top: 20px; }
 .practice-section { margin-top: 24px; text-align: left; }
 .practice-label { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--text-main); }
+.speaking-level-switch {
+    margin-bottom: 16px;
+}
 .topic-input {
     width: 100%; padding: 12px 16px; border: 1.5px solid #e0e0e0; border-radius: 14px;
     font-size: 15px; font-family: inherit; outline: none; transition: border-color 0.2s;
@@ -844,4 +849,10 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
 .install-generic-hint {
     font-size: 14px; color: var(--text-sub); line-height: 1.7;
     margin: 0 0 20px;
+}
+
+@media (max-width: 480px) {
+    .practice-mode-btn {
+        font-size: 17px;
+    }
 }

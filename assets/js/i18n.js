@@ -22,7 +22,6 @@ function withZhTwDefaults(localePack) {
 
 const TRANSLATIONS = {
     'zh-TW': ZH_TW,
-    'zh-CN': withZhTwDefaults(ZH_CN),
     ko: withZhTwDefaults(KO),
     ja: withZhTwDefaults(JA)
 };

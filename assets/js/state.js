@@ -33,6 +33,8 @@ export const state = {
         selectedTopic: '',
         customTopic: '',
         finalTopic: '',
+        level: '',
+        levelManuallySelected: false,
         isConnected: false,
         isRecording: false,
         isResponding: false

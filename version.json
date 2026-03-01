@@ -1,8 +1,11 @@
 {
-  "version": "1.2.3",
-  "date": "2026-02-27",
+  "version": "1.2.4",
+  "date": "2026-03-01",
   "changes": [
-    "新增多國語系支持，支援繁體中文、簡體中文、韓文、日文、塞爾維亞文、德文、越南文、印尼文、菲律賓文、法文、義大利文、西班牙文、泰文、印度文",
-    "Added multiple language support, supported Traditional Chinese, Simplified Chinese, Korean, Japanese, Serbian, German, Vietnamese, Indonesian, Filipino, French, Italian, Spanish, Thai, Hindi"
+    "移除部分國家語言，緊留繁體中文、韓文、日文",
+    "新增口說等級選項，可選擇初級、中級、困難",
+    "SRS 測驗結果新增詞性以及音標顯示",
+    "修正模擬考試答案解析功能，優化顯示結果",
+    "優化文章練習生成，豐富主題內容"
   ]
 }

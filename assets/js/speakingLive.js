@@ -24,6 +24,44 @@ const listeners = {
     connected: null
 };
 
+const SPEAKING_LEVELS = ['beginner', 'intermediate', 'advanced'];
+
+function getSpeakingLevelByScore(score) {
+    const numericScore = Number(score) || 700;
+    if (numericScore <= 600) return 'beginner';
+    if (numericScore === 700) return 'intermediate';
+    return 'advanced';
+}
+
+function getSpeakingLevelConfig(level, score) {
+    const resolvedLevel = SPEAKING_LEVELS.includes(level) ? level : getSpeakingLevelByScore(score);
+    if (resolvedLevel === 'beginner') {
+        return {
+            labelKey: 'speakingLevelBeginner',
+            promptLevel: 'beginner',
+            policy: 'Use mostly CEFR A1-A2 level English. Keep sentence length around 6-12 words. Prefer present tense and familiar daily vocabulary. Offer either-or choices when the learner hesitates.',
+            domains: 'Use easy everyday and basic workplace contexts: daily routines, shopping, transportation, travel check-ins, simple scheduling, and short office requests.',
+            opening: 'Start with a friendly greeting, add one short self-introduction, then ask one warm-up question that is easy to answer in one sentence.'
+        };
+    }
+    if (resolvedLevel === 'intermediate') {
+        return {
+            labelKey: 'speakingLevelIntermediate',
+            promptLevel: 'intermediate',
+            policy: 'Use CEFR B1-B2 level English. Encourage reasons, comparisons, and short examples. Introduce one upgraded phrase every 2 turns and keep a natural pace.',
+            domains: 'Focus on practical business communication: meetings, status updates, customer service replies, schedule changes, and team coordination.',
+            opening: 'Start with a natural greeting, briefly set a business-like context, and ask one open warm-up question that invites a reason.'
+        };
+    }
+    return {
+        labelKey: 'speakingLevelAdvanced',
+        promptLevel: 'advanced',
+        policy: 'Use upper B2-C1 level English. Ask for precise wording, trade-off analysis, and persuasive framing. Challenge assumptions with realistic scenario pivots when appropriate.',
+        domains: 'Allow broad advanced domains including academic topics, business strategy, negotiations, incident handling, specialist professional situations, and daily-life edge cases.',
+        opening: 'Start with a polished greeting, establish a realistic scenario, and ask one thought-provoking question that requires explanation and judgment.'
+    };
+}
+
 function emitStatus(text) {
     if (listeners.status) listeners.status(text);
 }
@@ -101,13 +139,29 @@ function playPcm16Chunk(base64Data, sampleRate = 24000) {
     nextPlayTime += audioBuffer.duration;
 }
 
-async function connectLive(topic) {
+async function connectLive(topic, score = 700, level = '') {
     emitStatus(t('speakingConnecting'));
     const ai = new GoogleGenAI({ apiKey: state.apiKey });
+    const levelConfig = getSpeakingLevelConfig(level, score);
+    const levelLabel = t(levelConfig.labelKey);
     const config = {
         responseModalities: [Modality.AUDIO],
         mediaResolution: MEDIA_RESOLUTION_LOW,
-        systemInstruction: `You are an English speaking partner for TOEIC learners. Hold a natural live conversation focused on this topic: ${topic}. Ask short follow-up questions and keep each turn concise.`
+        systemInstruction: `You are a TOEIC live speaking coach in an interactive conversation.
+Learner level: ${levelConfig.promptLevel}. Topic: "${topic}".
+
+Conversation behavior:
+- Keep each assistant turn natural and not overly short, usually 2-4 sentences.
+- Ask exactly one follow-up question per turn.
+- Sound like a real conversation partner, not a textbook.
+- Every 3-4 learner turns, provide one brief improvement tip.
+- If the learner makes a clear error, give one short inline correction, then continue naturally.
+
+Level policy:
+${levelConfig.policy}
+
+Domain scope:
+${levelConfig.domains}`
     };
 
     liveSession = await ai.live.connect({
@@ -117,7 +171,7 @@ async function connectLive(topic) {
             onopen: () => {
                 state.speakingState.isConnected = true;
                 emitConnected(true);
-                emitLog('system', `主題：${topic}`);
+                emitLog('system', t('speakingTopicLevelLog', { topic, level: levelLabel }));
                 emitStatus(t('speakingConnectedPreparingMic'));
             },
             onmessage: (message) => {
@@ -158,7 +212,10 @@ async function connectLive(topic) {
         turns: [{
             role: 'user',
             parts: [{
-                text: `Start the conversation first about "${topic}". Give a short greeting in simple English, then ask one easy warm-up question.`
+                text: `Start the conversation about "${topic}".
+Learner level is ${levelConfig.promptLevel}.
+${levelConfig.opening}
+Keep your first response warm, useful, and specific instead of too brief.`
             }]
         }],
         turnComplete: true
@@ -231,7 +288,10 @@ async function setupMicStream() {
     emitStatus(t('speakingInProgress'));
 }
 
-export async function startSpeakingSession(topic, callbacks = {}) {
+export async function startSpeakingSession(input, callbacks = {}) {
+    const topic = typeof input === 'string' ? input : String(input?.topic || '').trim();
+    const score = typeof input === 'object' && input !== null ? Number(input.score) || 700 : 700;
+    const level = typeof input === 'object' && input !== null ? String(input.level || '').trim() : '';
     if (!state.apiKey) throw new Error(t('alertSetApiKeyFirst'));
     if (!topic) throw new Error(t('alertSelectTopicFirst'));
     if (liveSession || mediaStream) await stopSpeakingSession();
@@ -243,9 +303,9 @@ export async function startSpeakingSession(topic, callbacks = {}) {
     state.speakingState.finalTopic = topic;
     state.speakingState.isResponding = false;
 
-    await connectLive(topic);
+    await connectLive(topic, score, level);
     await setupMicStream();
-    emitLog('system', 'Session started');
+    emitLog('system', t('speakingSessionStarted'));
 }
 
 export async function stopSpeakingSession() {
