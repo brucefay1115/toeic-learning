@@ -176,6 +176,16 @@ async function showSrsResults() {
         wordEl.className = 'srs-result-word';
         wordEl.textContent = wr.word.en;
 
+        const posText = wr.word.pos?.trim();
+        const posEl = document.createElement('span');
+        posEl.className = 'vocab-pos';
+        posEl.textContent = posText || '';
+
+        const ipaText = wr.word.ipa?.trim();
+        const ipaEl = document.createElement('span');
+        ipaEl.className = 'vocab-ipa';
+        ipaEl.textContent = ipaText || '';
+
         const speakBtn = document.createElement('button');
         speakBtn.type = 'button';
         speakBtn.className = 'mini-speaker srs-result-speaker';
@@ -208,6 +218,8 @@ async function showSrsResults() {
         exZh.textContent = wr.word.ex_zh?.trim() || t('srsNoExampleZh');
 
         wordRow.appendChild(wordEl);
+        if (posText) wordRow.appendChild(posEl);
+        if (ipaText) wordRow.appendChild(ipaEl);
         wordRow.appendChild(speakBtn);
         main.appendChild(wordRow);
         main.appendChild(meta);
