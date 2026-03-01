@@ -21,7 +21,6 @@ const STATIC_ASSETS = [
   './assets/js/installPrompt.js',
   './assets/js/i18n.js',
   './assets/js/i18n/locales/zh-TW.js',
-  './assets/js/i18n/locales/zh-CN.js',
   './assets/js/i18n/locales/ko.js',
   './assets/js/i18n/locales/ja.js',
   './assets/icons/icon-192.png',

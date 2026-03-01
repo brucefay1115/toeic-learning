@@ -2,20 +2,17 @@ const DEFAULT_LOCALE = 'zh-TW';
 
 export const SUPPORTED_LOCALES = [
     { code: 'zh-TW', name: '繁體中文（台灣）' },
-    { code: 'zh-CN', name: '简体中文（中国）' },
     { code: 'ko', name: '한국어' },
     { code: 'ja', name: '日本語' }
 ];
 
 const LOCALE_META = {
     'zh-TW': { name: 'Traditional Chinese', inLocal: '繁體中文' },
-    'zh-CN': { name: 'Simplified Chinese', inLocal: '简体中文' },
     ko: { name: 'Korean', inLocal: '한국어' },
     ja: { name: 'Japanese', inLocal: '日本語' }
 };
 
 import ZH_TW from './i18n/locales/zh-TW.js';
-import ZH_CN from './i18n/locales/zh-CN.js';
 import KO from './i18n/locales/ko.js';
 import JA from './i18n/locales/ja.js';
 
@@ -58,7 +55,6 @@ export function detectBrowserLocale() {
 
         const lower = lang.toLowerCase();
         if (lower.startsWith('zh-hant') || lower === 'zh-tw' || lower === 'zh-hk' || lower === 'zh-mo') return 'zh-TW';
-        if (lower.startsWith('zh-hans') || lower === 'zh-cn' || lower === 'zh-sg') return 'zh-CN';
         if (lower.startsWith('ko')) return 'ko';
         if (lower.startsWith('ja')) return 'ja';
     }
