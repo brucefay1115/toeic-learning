@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toeic-tutor-v1.2.5';
+const CACHE_NAME = 'toeic-tutor-v1.2.6';
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -50,6 +50,10 @@ function isNavigationRequest(request) {
   return accept.includes('text/html');
 }
 
+function isScriptOrStyleRequest(request) {
+  return request.destination === 'script' || request.destination === 'style';
+}
+
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
 
@@ -65,6 +69,19 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  if (isScriptOrStyleRequest(event.request)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {

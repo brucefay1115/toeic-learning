@@ -532,8 +532,14 @@ document.getElementById('vocabLookupInput').addEventListener('keydown', (event) 
     handleLookupSearch();
 });
 document.querySelector('#wordModal .wm-btn.secondary').onclick = () => closeModal();
-document.getElementById('btnAnnouncement').onclick = () => announcementModal.classList.add('active');
-document.getElementById('btnCloseAnnouncementModal').onclick = () => announcementModal.classList.remove('active');
+const btnAnnouncement = document.getElementById('btnAnnouncement');
+const btnCloseAnnouncementModal = document.getElementById('btnCloseAnnouncementModal');
+if (btnAnnouncement && announcementModal) {
+    btnAnnouncement.onclick = () => announcementModal.classList.add('active');
+}
+if (btnCloseAnnouncementModal && announcementModal) {
+    btnCloseAnnouncementModal.onclick = () => announcementModal.classList.remove('active');
+}
 document.getElementById('btnSaveApiKey').onclick = async () => saveApiKey();
 document.getElementById('btnClearApiKey').onclick = () => clearApiKey();
 document.getElementById('btnCloseKeyModal').onclick = () => keyModal.classList.remove('active');
