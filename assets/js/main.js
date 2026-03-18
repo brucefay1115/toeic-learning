@@ -15,6 +15,20 @@ import { initInstallPrompt } from './installPrompt.js';
 import { startSpeakingSession, stopSpeakingSession } from './speakingLive.js';
 import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload, playListeningQuestion, resolveChoice } from './exam.js';
 import { SUPPORTED_LOCALES, applyTranslations, detectBrowserLocale, getLocale, setLocale, t } from './i18n.js';
+import { logError, toErrorMessage } from './errorPolicy.js';
+import { createId } from './id.js';
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from './storageSafe.js';
+import { SPEAKING_LEVELS, getSpeakingLevelByScore } from './speakingLevel.js';
+import { fetchVersionInfo, getBootVersionInfo } from './versioning.js';
+import {
+    resetSpeakingPracticeView as viewResetSpeakingPractice,
+    showSpeakingConfigView as viewShowSpeakingConfig,
+    showSpeakingSessionView as viewShowSpeakingSession,
+    resetExamPracticeView as viewResetExamPractice,
+    showExamConfigView as viewShowExamConfig,
+    showExamSessionView as viewShowExamSession
+} from './practiceViews.js';
+import { prependSpeakingLog, renderSpeakingLogs } from './speakingLogView.js';
 
 /* ── Wire cross-module callbacks ── */
 setSrsTrigger(startSrsReview);
@@ -95,8 +109,8 @@ function switchTab(tabName) {
     ['tabLearn', 'tabPractice', 'tabVocab', 'tabHistory', 'tabAbout'].forEach(id => document.getElementById(id).classList.add('hidden'));
     document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
-    if (tabName === 'practice' && state.practiceMode === 'speaking') resetSpeakingPracticeView();
-    if (tabName === 'practice' && state.practiceMode === 'exam') resetExamPracticeView();
+    if (tabName === 'practice' && state.practiceMode === 'speaking') viewResetSpeakingPractice();
+    if (tabName === 'practice' && state.practiceMode === 'exam') viewResetExamPractice();
     if (tabName === 'history') renderHistory();
     if (tabName === 'vocab') renderVocabTab();
     updatePlayerBarVisibility();
@@ -115,23 +129,13 @@ function setPracticeMode(mode) {
     document.getElementById('practicePanelArticle').classList.toggle('hidden', mode !== 'article');
     document.getElementById('practicePanelSpeaking').classList.toggle('hidden', mode !== 'speaking');
     document.getElementById('practicePanelExam').classList.toggle('hidden', mode !== 'exam');
-    if (mode === 'speaking') resetSpeakingPracticeView();
-    if (mode === 'exam') resetExamPracticeView();
+    if (mode === 'speaking') viewResetSpeakingPractice();
+    if (mode === 'exam') viewResetExamPractice();
 }
 
 document.querySelectorAll('.practice-mode-btn').forEach(btn => {
     btn.onclick = () => setPracticeMode(btn.dataset.mode);
 });
-
-/* ── Speaking level chips ── */
-const SPEAKING_LEVELS = ['beginner', 'intermediate', 'advanced'];
-
-function getSpeakingLevelByScore(score) {
-    const numericScore = Number(score) || 700;
-    if (numericScore <= 600) return 'beginner';
-    if (numericScore === 700) return 'intermediate';
-    return 'advanced';
-}
 
 function renderSpeakingLevelSwitch() {
     const fallbackLevel = getSpeakingLevelByScore(state.targetScore);
@@ -287,14 +291,6 @@ async function clearApiKey() {
     alert(t('alertApiKeyCleared'));
 }
 
-function safeLocalGet(key) {
-    try { return localStorage.getItem(key); } catch { return null; }
-}
-
-function safeLocalSet(key, value) {
-    try { localStorage.setItem(key, value); } catch { /* no-op */ }
-}
-
 function setAppVersionText(text) {
     const el = document.getElementById('appVersion');
     if (el) el.textContent = text;
@@ -328,9 +324,13 @@ function setButtonLoading(button, loadingText, spinnerClass = 'loader') {
 }
 
 let activeSpeakingRecord = null;
+let speakingPersistTimer = null;
+let examPersistTimer = null;
+let examPersistPendingStage = null;
+let examPersistPendingOptions = null;
 
 function createRecordId(prefix) {
-    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return createId(prefix);
 }
 
 function cloneValue(value) {
@@ -385,6 +385,50 @@ async function persistSpeakingRecord() {
     });
 }
 
+function scheduleSpeakingPersist(delayMs = 450) {
+    if (speakingPersistTimer) clearTimeout(speakingPersistTimer);
+    speakingPersistTimer = setTimeout(() => {
+        speakingPersistTimer = null;
+        persistSpeakingRecord().catch((e) => logError('Persist speaking log failed', e));
+    }, delayMs);
+}
+
+async function flushSpeakingPersist() {
+    if (speakingPersistTimer) {
+        clearTimeout(speakingPersistTimer);
+        speakingPersistTimer = null;
+    }
+    await persistSpeakingRecord();
+}
+
+function scheduleExamPersist(recordStage, options = {}, delayMs = 350) {
+    examPersistPendingStage = recordStage;
+    examPersistPendingOptions = options;
+    if (examPersistTimer) clearTimeout(examPersistTimer);
+    examPersistTimer = setTimeout(() => {
+        examPersistTimer = null;
+        const stage = examPersistPendingStage;
+        const opts = examPersistPendingOptions;
+        examPersistPendingStage = null;
+        examPersistPendingOptions = null;
+        persistExamRecord(stage, opts).catch((e) => logError('Persist exam state failed', e));
+    }, delayMs);
+}
+
+async function flushExamPersist() {
+    if (examPersistTimer) {
+        clearTimeout(examPersistTimer);
+        examPersistTimer = null;
+    }
+    if (examPersistPendingStage) {
+        const stage = examPersistPendingStage;
+        const opts = examPersistPendingOptions || {};
+        examPersistPendingStage = null;
+        examPersistPendingOptions = null;
+        await persistExamRecord(stage, opts);
+    }
+}
+
 function setExamStateFromRecord(item) {
     const snapshot = item.examSnapshot || {};
     state.targetScore = Number(item.score) || state.targetScore;
@@ -414,7 +458,7 @@ function openExamRecordFromHistory(item) {
         renderExamActions('answering');
     }
     setPracticeMode('exam');
-    showExamSessionView();
+    viewShowExamSession(setLearnRuntimeMode, switchTab);
     markLearnRecord({ id: item.id, type: 'exam', fromHistory: true });
 }
 
@@ -429,17 +473,11 @@ function openArticleRecordFromHistory(item) {
 function openSpeakingRecordFromHistory(item) {
     const logs = Array.isArray(item.logs) ? item.logs : [];
     setPracticeMode('speaking');
-    showSpeakingSessionView();
+    viewShowSpeakingSession(setLearnRuntimeMode, switchTab);
     document.getElementById('btnStopSpeaking').disabled = true;
     document.getElementById('speakingStatus').textContent = item.finalStatus || t('speakingRecordReview');
     const logEl = document.getElementById('speakingLog');
-    logEl.innerHTML = '';
-    logs.forEach((entry) => {
-        const row = document.createElement('div');
-        row.className = 'speaking-log-item';
-        row.innerHTML = `<span class="speaking-log-role">${String(entry.role || 'log').toUpperCase()}</span>${entry.text || ''}`;
-        logEl.prepend(row);
-    });
+    renderSpeakingLogs(logEl, logs);
     markLearnRecord({ id: item.id, type: 'speaking', fromHistory: true });
 }
 
@@ -462,21 +500,27 @@ function handleHistoryMutated({ action, item }) {
 function initAppVersionDisplay() {
     const cached = safeLocalGet(APP_VERSION_CACHE_KEY);
     setAppVersionText(cached || 'v--');
+    const bootInfo = getBootVersionInfo();
+    if (bootInfo?.version) {
+        const text = `v${bootInfo.version}`;
+        setAppVersionText(text);
+        safeLocalSet(APP_VERSION_CACHE_KEY, text);
+        return;
+    }
 
-    fetch('./version.json?t=' + Date.now())
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d?.version) {
-            const text = `v${d.version}`;
-            setAppVersionText(text);
-            safeLocalSet(APP_VERSION_CACHE_KEY, text);
-        } else if (cached) {
-            setAppVersionText(cached);
-        }
-      })
-      .catch(() => {
-        if (cached) setAppVersionText(cached);
-      });
+    fetchVersionInfo(true)
+        .then((info) => {
+            if (info?.version) {
+                const text = `v${info.version}`;
+                setAppVersionText(text);
+                safeLocalSet(APP_VERSION_CACHE_KEY, text);
+            } else if (cached) {
+                setAppVersionText(cached);
+            }
+        })
+        .catch(() => {
+            if (cached) setAppVersionText(cached);
+        });
 }
 
 /* ── Static HTML event bindings (replacing inline onclick) ── */
@@ -515,7 +559,7 @@ if (localeSelect) {
         try {
             await persistLocaleSelection(locale);
         } catch (error) {
-            console.error('Persist locale failed:', error);
+            logError('Persist locale failed', error);
         }
     };
 }
@@ -525,36 +569,16 @@ document.getElementById('btnRestore').onclick = () => DriveSync.restore();
 document.getElementById('btnCloudLogout').onclick = () => DriveSync.logout();
 document.querySelector('#srsOverlay .srs-close-btn').onclick = () => closeSrsReview();
 
-/* ── Speaking mode UI ── */
-function resetSpeakingPracticeView() {
-    document.getElementById('speakingConfigView').classList.remove('hidden');
-}
-
-function showSpeakingConfigView() {
-    resetSpeakingPracticeView();
-    setLearnRuntimeMode('article');
-    switchTab('practice');
-}
-
-function showSpeakingSessionView() {
-    document.getElementById('speakingConfigView').classList.add('hidden');
-    setLearnRuntimeMode('speaking');
-    switchTab('learn');
-}
-
 function appendSpeakingLog(role, text) {
     const logEl = document.getElementById('speakingLog');
-    const row = document.createElement('div');
-    row.className = 'speaking-log-item';
-    row.innerHTML = `<span class="speaking-log-role">${role.toUpperCase()}</span>${text}`;
-    logEl.prepend(row);
+    prependSpeakingLog(logEl, role, text);
     if (activeSpeakingRecord) {
         activeSpeakingRecord.logs.push({
             ts: Date.now(),
             role: String(role || '').toLowerCase(),
             text
         });
-        persistSpeakingRecord().catch((e) => console.error('Persist speaking log failed:', e));
+        scheduleSpeakingPersist();
     }
 }
 
@@ -567,6 +591,7 @@ function setSpeakingStatus(text) {
 
 async function finalizeSpeakingRecord(finalStatus = t('speakingStatusStopped')) {
     if (!activeSpeakingRecord) return;
+    await flushSpeakingPersist();
     activeSpeakingRecord.endedAt = Date.now();
     activeSpeakingRecord.durationMs = Math.max(0, activeSpeakingRecord.endedAt - activeSpeakingRecord.startedAt);
     activeSpeakingRecord.recordStage = 'speaking_completed';
@@ -606,7 +631,7 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
             logs: []
         };
         await persistSpeakingRecord();
-        showSpeakingSessionView();
+        viewShowSpeakingSession(setLearnRuntimeMode, switchTab);
         setSpeakingStatus(t('speakingStatusInit'));
         document.getElementById('btnStartSpeaking').disabled = true;
         document.getElementById('btnStopSpeaking').disabled = false;
@@ -618,15 +643,15 @@ document.getElementById('btnStartSpeaking').onclick = async () => {
             }
         });
     } catch (error) {
-        console.error(error);
-        setSpeakingStatus(t('speakingStartFailed', { message: error.message }));
+        logError('Start speaking failed', error);
+        setSpeakingStatus(t('speakingStartFailed', { message: toErrorMessage(error) }));
         if (activeSpeakingRecord) {
             await finalizeSpeakingRecord(t('speakingInitFailed'));
             activeSpeakingRecord = null;
         }
         document.getElementById('btnStartSpeaking').disabled = false;
         document.getElementById('btnStopSpeaking').disabled = true;
-        showSpeakingConfigView();
+        viewShowSpeakingConfig(setLearnRuntimeMode, switchTab);
     }
 };
 
@@ -645,7 +670,7 @@ document.getElementById('btnSpeakingBack').onclick = async () => {
     activeSpeakingRecord = null;
     document.getElementById('btnStartSpeaking').disabled = false;
     document.getElementById('btnStopSpeaking').disabled = true;
-    showSpeakingConfigView();
+    viewShowSpeakingConfig(setLearnRuntimeMode, switchTab);
 };
 
 /* ── Exam mode ── */
@@ -654,23 +679,6 @@ const EXAM_SHELL = document.getElementById('examShell');
 const EXAM_META = document.getElementById('examMeta');
 const EXAM_CONTENT = document.getElementById('examContent');
 const EXAM_ACTIONS = document.getElementById('examActions');
-const EXAM_CONFIG_VIEW = document.getElementById('examConfigView');
-
-function resetExamPracticeView() {
-    EXAM_CONFIG_VIEW.classList.remove('hidden');
-}
-
-function showExamConfigView() {
-    resetExamPracticeView();
-    setLearnRuntimeMode('article');
-    switchTab('practice');
-}
-
-function showExamSessionView() {
-    EXAM_CONFIG_VIEW.classList.add('hidden');
-    setLearnRuntimeMode('exam');
-    switchTab('learn');
-}
 
 function renderExamActions(stage = 'answering') {
     EXAM_ACTIONS.innerHTML = '';
@@ -696,7 +704,7 @@ function renderExamActions(stage = 'answering') {
 }
 
 function createExamAttemptId() {
-    return `exam-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return createId('exam');
 }
 
 function buildExamSummary(result) {
@@ -762,6 +770,7 @@ function renderExamResult() {
 }
 
 async function handleSubmitExam() {
+    await flushExamPersist();
     const result = gradeExam(state.examState.questions, state.examState.answers);
     state.examState.result = result;
     state.examState.explanationRecordSaved = false;
@@ -771,6 +780,7 @@ async function handleSubmitExam() {
 }
 
 async function handleExplainWrongAnswers() {
+    await flushExamPersist();
     const result = state.examState.result;
     if (!result || !result.wrongCount) return;
     const alreadyHasExplanation = state.examState.explanationRecordSaved
@@ -789,7 +799,7 @@ async function handleExplainWrongAnswers() {
         renderExamResult();
         renderExamActions('graded');
     } catch (error) {
-        alert(t('alertExplainFailed', { message: error.message }));
+        alert(t('alertExplainFailed', { message: toErrorMessage(error) }));
     } finally {
         finishLoading();
     }
@@ -819,10 +829,10 @@ EXAM_BTN.onclick = async () => {
         EXAM_META.textContent = t('examMeta', { score: state.targetScore, count: questions.length });
         renderExamQuestions(EXAM_CONTENT, questions, state.examState.answers);
         renderExamActions('answering');
-        showExamSessionView();
+        viewShowExamSession(setLearnRuntimeMode, switchTab);
     } catch (error) {
-        console.error(error);
-        alert(t('alertGenerateFailed', { message: error.message }));
+        logError('Generate exam failed', error);
+        alert(t('alertGenerateFailed', { message: toErrorMessage(error) }));
     } finally {
         finishLoading();
     }
@@ -841,8 +851,8 @@ EXAM_CONTENT.onclick = async (e) => {
         try {
             await playListeningQuestion(qForReview, state.examState.voiceName || 'Kore', cachedAudio);
         } catch (error) {
-            console.error(error);
-            alert(t('alertPlaybackFailed', { message: error.message }));
+            logError('Play review audio failed', error);
+            alert(t('alertPlaybackFailed', { message: toErrorMessage(error) }));
         } finally {
             finishLoading();
         }
@@ -852,7 +862,7 @@ EXAM_CONTENT.onclick = async (e) => {
     if (!q || state.examState.result) return;
     if (action === 'answer') {
         state.examState.answers[id] = btn.dataset.optionKey || btn.dataset.option || '';
-        persistExamRecord('exam_generated', { includeSummary: false, explanationsOverride: state.examState.explanations || null }).catch((e) => console.error('Persist exam answer failed:', e));
+        scheduleExamPersist('exam_generated', { includeSummary: false, explanationsOverride: state.examState.explanations || null });
         renderExamQuestions(EXAM_CONTENT, state.examState.questions, state.examState.answers);
         return;
     }
@@ -863,23 +873,23 @@ EXAM_CONTENT.onclick = async (e) => {
             const result = await playListeningQuestion(q, state.examState.voiceName || 'Kore', cachedAudio);
             if (result?.base64 && !cachedAudio) {
                 state.examState.listeningAudioByQuestion[id] = result.base64;
-                persistExamRecord(state.examState.result ? 'exam_submitted' : 'exam_generated', {
+                scheduleExamPersist(state.examState.result ? 'exam_submitted' : 'exam_generated', {
                     includeSummary: !!state.examState.result,
                     explanationsOverride: state.examState.explanations || null
-                }).catch((e) => console.error('Persist exam audio failed:', e));
+                });
             }
             if (result?.fallbackUsed) {
                 EXAM_META.textContent = t('examFallbackTtsBusy');
             }
         } catch (error) {
-            console.error(error);
-            alert(t('alertPlaybackFailed', { message: error.message }));
+            logError('Play exam listening failed', error);
+            alert(t('alertPlaybackFailed', { message: toErrorMessage(error) }));
         } finally {
             finishLoading();
         }
     }
 };
-document.getElementById('btnExamBack').onclick = () => showExamConfigView();
+document.getElementById('btnExamBack').onclick = () => viewShowExamConfig(setLearnRuntimeMode, switchTab);
 
 /* ── Generate button ── */
 const GENERATE_BTN = document.getElementById('btnGenerate');
@@ -912,8 +922,8 @@ GENERATE_BTN.onclick = async () => {
         markLearnRecord(articleRecord?.id ? { id: articleRecord.id, type: 'article', fromHistory: false } : null);
         switchTab('learn');
     } catch (error) {
-        console.error(error);
-        alert(t('alertGenerateFailed', { message: error.message }));
+        logError('Generate article failed', error);
+        alert(t('alertGenerateFailed', { message: toErrorMessage(error) }));
     } finally {
         finishLoading();
     }
@@ -935,16 +945,16 @@ GENERATE_BTN.onclick = async () => {
         applyLocaleToUI();
         let apiKey = await DB.getSetting('gemini_api_key');
         if (!apiKey) {
-            const lk = localStorage.getItem('gemini_api_key');
-            if (lk) { apiKey = lk; await DB.setSetting('gemini_api_key', lk); localStorage.removeItem('gemini_api_key'); }
+            const lk = safeLocalGet('gemini_api_key');
+            if (lk) { apiKey = lk; await DB.setSetting('gemini_api_key', lk); safeLocalRemove('gemini_api_key'); }
         }
         if (apiKey) state.apiKey = apiKey; else keyModal.classList.add('active');
         renderHistory();
         await loadLastSession();
         setPracticeMode('article');
         setLearnRuntimeMode('article');
-        showSpeakingConfigView();
-        showExamConfigView();
+        viewShowSpeakingConfig(setLearnRuntimeMode, switchTab);
+        viewShowExamConfig(setLearnRuntimeMode, switchTab);
 
         DriveSync.init();
         const cloudEnabled = await DB.getSetting('cloud_sync_enabled');
@@ -953,6 +963,6 @@ GENERATE_BTN.onclick = async () => {
             DriveSync.updateUI();
         }
         initPostLocalePrompts();
-    } catch (e) { console.error("Init failed:", e); keyModal.classList.add('active'); }
+    } catch (e) { logError('Init failed', e); keyModal.classList.add('active'); }
     finally { window.dispatchEvent(new CustomEvent('toeic-app-ready')); }
 })();

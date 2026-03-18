@@ -7,6 +7,15 @@ import { addLongPressListener, toggleWordSaved } from './vocab.js';
 import { audioEl, playBtn, ensureAudioReady } from './audioPlayer.js';
 import { t } from './i18n.js';
 
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 export function renderContent(data, voiceName) {
     const metaEl = document.getElementById('articleMeta');
     metaEl.innerHTML = '';
@@ -15,7 +24,7 @@ export function renderContent(data, voiceName) {
         const voiceText = opt
             ? `${t(opt.labelKey)} · ${t(opt.descKey)}`
             : voiceName;
-        metaEl.innerHTML = `<span class="voice-badge">${ICONS.speaker} ${voiceText}</span>`;
+        metaEl.innerHTML = `<span class="voice-badge">${ICONS.speaker} ${escapeHtml(voiceText)}</span>`;
     }
 
     const container = document.getElementById('articleContainer');
@@ -90,25 +99,39 @@ export function renderContent(data, voiceName) {
     /* Vocab cards with save button */
     const vocabContainer = document.getElementById('vocabList');
     vocabContainer.innerHTML = '';
-    (data.vocabulary || []).slice(0, 8).forEach(v => {
+    const vocabRows = (data.vocabulary || []).slice(0, 8);
+    const savedWordsPromise = DB.getSavedWords()
+        .then((rows) => new Set((rows || []).map((row) => String(row.id || '').toLowerCase())))
+        .catch(() => new Set());
+    vocabRows.forEach(v => {
         const card = document.createElement('div');
         card.className = 'vocab-card';
-        const safeWord = v.word.replace(/'/g, "\\'");
-        const safeEx = v.ex.replace(/'/g, "\\'");
+        const word = String(v.word || '');
+        const pos = String(v.pos || '');
+        const ipa = String(v.ipa || '');
+        const def = String(v.def || '');
+        const ex = String(v.ex || '');
+        const exZh = String(v.ex_zh || '');
         card.innerHTML = `
             <div class="vocab-header">
-                <div><span class="vocab-word">${v.word}</span><button class="mini-speaker" onclick="speakText('${safeWord}')">${ICONS.speaker}</button></div>
-                <div><span class="vocab-pos">${v.pos}</span><span class="vocab-ipa">${v.ipa}</span><button class="vocab-save-btn">${ICONS.bookmark}</button></div>
+                <div><span class="vocab-word">${escapeHtml(word)}</span><button class="mini-speaker" data-speak="${escapeHtml(word)}">${ICONS.speaker}</button></div>
+                <div><span class="vocab-pos">${escapeHtml(pos)}</span><span class="vocab-ipa">${escapeHtml(ipa)}</span><button class="vocab-save-btn">${ICONS.bookmark}</button></div>
             </div>
-            <div class="vocab-def">${v.def}</div>
-            <div class="vocab-ex">${v.ex}<button class="mini-speaker" onclick="speakText('${safeEx}')">${ICONS.speaker}</button></div>
-            ${v.ex_zh ? `<div class="vocab-ex-zh">${v.ex_zh}</div>` : ''}`;
+            <div class="vocab-def">${escapeHtml(def)}</div>
+            <div class="vocab-ex">${escapeHtml(ex)}<button class="mini-speaker" data-speak="${escapeHtml(ex)}">${ICONS.speaker}</button></div>
+            ${exZh ? `<div class="vocab-ex-zh">${escapeHtml(exZh)}</div>` : ''}`;
+        card.querySelectorAll('[data-speak]').forEach((btn) => {
+            btn.onclick = () => speakText(btn.dataset.speak || '');
+        });
         const saveBtn = card.querySelector('.vocab-save-btn');
-        DB.getSavedWord(v.word.toLowerCase()).then(existing => {
-            if (existing) { saveBtn.innerHTML = ICONS.bookmarkFill; saveBtn.classList.add('saved'); }
+        savedWordsPromise.then((savedSet) => {
+            if (savedSet.has(word.toLowerCase())) {
+                saveBtn.innerHTML = ICONS.bookmarkFill;
+                saveBtn.classList.add('saved');
+            }
         });
         saveBtn.onclick = async () => {
-            const saved = await toggleWordSaved(v.word, v);
+            const saved = await toggleWordSaved(word, v);
             if (saved) {
                 saveBtn.innerHTML = ICONS.bookmarkFill;
                 saveBtn.classList.add('saved');
@@ -127,13 +150,27 @@ export function renderContent(data, voiceName) {
     if (data.phrases && data.phrases.length > 0) {
         phraseTitle.textContent = t('sectionPhrases');
         data.phrases.forEach(p => {
-            const safePhrase = (p.phrase || '').replace(/'/g, "\\'");
-            const safeEx = (p.example || '').replace(/'/g, "\\'");
-            phraseContainer.innerHTML += `<div class="phrase-card"><div class="phrase-header">${p.phrase}<button class="mini-speaker" onclick="speakText('${safePhrase}')" style="margin-left:6px;">${ICONS.speaker}</button></div><div class="phrase-meaning">${p.meaning}</div><div class="phrase-explanation">${p.explanation}</div><div class="phrase-example">${p.example}<button class="mini-speaker" onclick="speakText('${safeEx}')" style="margin-left:4px;">${ICONS.speaker}</button></div>${p.example_zh ? `<div class="phrase-example-zh">${p.example_zh}</div>` : ''}</div>`;
+            const phrase = String(p.phrase || '');
+            const meaning = String(p.meaning || '');
+            const explanation = String(p.explanation || '');
+            const example = String(p.example || '');
+            const exampleZh = String(p.example_zh || '');
+            const card = document.createElement('div');
+            card.className = 'phrase-card';
+            card.innerHTML = `<div class="phrase-header">${escapeHtml(phrase)}<button class="mini-speaker" data-speak="${escapeHtml(phrase)}" style="margin-left:6px;">${ICONS.speaker}</button></div><div class="phrase-meaning">${escapeHtml(meaning)}</div><div class="phrase-explanation">${escapeHtml(explanation)}</div><div class="phrase-example">${escapeHtml(example)}<button class="mini-speaker" data-speak="${escapeHtml(example)}" style="margin-left:4px;">${ICONS.speaker}</button></div>${exampleZh ? `<div class="phrase-example-zh">${escapeHtml(exampleZh)}</div>` : ''}`;
+            card.querySelectorAll('[data-speak]').forEach((btn) => {
+                btn.onclick = () => speakText(btn.dataset.speak || '');
+            });
+            phraseContainer.appendChild(card);
         });
     } else if (data.grammar && data.grammar.length > 0) {
         phraseTitle.textContent = t('sectionGrammar');
-        data.grammar.forEach(g => { phraseContainer.innerHTML += `<div class="grammar-item"><span class="grammar-bullet">•</span><span>${g}</span></div>`; });
+        data.grammar.forEach(g => {
+            const row = document.createElement('div');
+            row.className = 'grammar-item';
+            row.innerHTML = `<span class="grammar-bullet">•</span><span>${escapeHtml(g)}</span>`;
+            phraseContainer.appendChild(row);
+        });
     }
 
     state.showTranslation = false;

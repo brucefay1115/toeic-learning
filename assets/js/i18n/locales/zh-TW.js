@@ -164,6 +164,7 @@ export default {
     "driveRestoreNotFound": "雲端沒有找到備份資料",
     "driveUnknownDate": "未知",
     "driveRestoreFailed": "還原失敗: {message}",
+    "driveRestoreInvalidPayload": "備份檔內容格式無效，無法還原。",
     "driveRestoreDetectedTitle": "偵測到雲端備份",
     "driveRestoreDetectedSummary": "備份時間：{date}<br>包含 {historyCount} 筆學習紀錄、{vocabCount} 個單字",
     "driveCancelBtn": "取消",

@@ -164,6 +164,7 @@ export default {
     "driveRestoreNotFound": "클라우드 백업을 찾을 수 없습니다",
     "driveUnknownDate": "알 수 없음",
     "driveRestoreFailed": "복원 실패: {message}",
+    "driveRestoreInvalidPayload": "백업 데이터 형식이 올바르지 않아 복원할 수 없습니다.",
     "driveRestoreDetectedTitle": "클라우드 백업이 감지되었습니다",
     "driveRestoreDetectedSummary": "백업 시간: {date}<br>학습 기록 {historyCount}개, 단어 {vocabCount}개 포함",
     "driveCancelBtn": "취소",

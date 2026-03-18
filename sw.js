@@ -1,4 +1,5 @@
-const CACHE_NAME = 'toeic-tutor-v1.2.8';
+const CACHE_PREFIX = 'toeic-tutor-static';
+const CACHE_NAME = `${CACHE_PREFIX}-v1`;
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -29,8 +30,10 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
+    caches.delete(CACHE_NAME)
+      .then(() => caches.open(CACHE_NAME))
       .then((cache) => cache.addAll(STATIC_ASSETS))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -38,7 +41,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        keys.filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME).map((k) => caches.delete(k))
       ))
       .then(() => self.clients.claim())
   );
@@ -52,6 +55,12 @@ function isNavigationRequest(request) {
 
 function isScriptOrStyleRequest(request) {
   return request.destination === 'script' || request.destination === 'style';
+}
+
+async function putIfOk(cache, request, response) {
+  if (!response || !response.ok) return response;
+  await cache.put(request, response.clone());
+  return response;
 }
 
 self.addEventListener('fetch', (event) => {
@@ -82,13 +91,22 @@ self.addEventListener('fetch', (event) => {
 
   if (isScriptOrStyleRequest(event.request)) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(event.request))
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request, { ignoreSearch: true });
+        const networkFetch = fetch(event.request)
+          .then((response) => putIfOk(cache, event.request, response))
+          .catch(() => null);
+
+        // stale-while-revalidate: fast cached response, refresh in background
+        if (cached) {
+          event.waitUntil(networkFetch);
+          return cached;
+        }
+
+        const networkResp = await networkFetch;
+        if (networkResp) return networkResp;
+        return cache.match(event.request, { ignoreSearch: true });
+      })
     );
     return;
   }
@@ -101,5 +119,15 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+    return;
+  }
+  if (event.data === 'purgeCaches') {
+    event.waitUntil(
+      caches.keys().then((keys) => Promise.all(
+        keys
+          .filter((k) => k.startsWith(CACHE_PREFIX))
+          .map((k) => caches.delete(k))
+      ))
+    );
   }
 });

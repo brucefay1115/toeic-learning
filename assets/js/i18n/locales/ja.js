@@ -164,6 +164,7 @@ export default {
     "driveRestoreNotFound": "クラウドバックアップが見つかりません",
     "driveUnknownDate": "不明",
     "driveRestoreFailed": "復元失敗: {message}",
+    "driveRestoreInvalidPayload": "バックアップデータの形式が無効なため、復元できません。",
     "driveRestoreDetectedTitle": "クラウドバックアップを検出しました",
     "driveRestoreDetectedSummary": "バックアップ日時: {date}<br>{historyCount} 件の履歴と {vocabCount} 語の単語を含みます",
     "driveCancelBtn": "キャンセル",

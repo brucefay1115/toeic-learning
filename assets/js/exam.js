@@ -2,8 +2,10 @@
 
 import { fetchGeminiTTS } from './apiGemini.js';
 import { t } from './i18n.js';
+import { createId } from './id.js';
+import { pcmToWavBlob } from './audioCodec.js';
+import { getChoiceLabel, getQuestionOptions, resolveAnswerKey, resolveChoice } from './examNormalize.js';
 
-const OPTION_KEYS = ['A', 'B', 'C', 'D'];
 const SECTION_LABEL_KEYS = {
     listening: 'examSectionListening',
     reading: 'examSectionReading',
@@ -16,80 +18,7 @@ function getSectionLabel(section) {
     return key ? t(key) : section;
 }
 
-function uid() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function normalizeKey(value) {
-    const raw = String(value || '').trim().toUpperCase();
-    if (!raw) return '';
-    if (OPTION_KEYS.includes(raw)) return raw;
-    const matched = raw.match(/^([A-D])(?:[\s.)\-:].*)?$/);
-    return matched ? matched[1] : '';
-}
-
-function parseLegacyOptionString(value) {
-    const raw = String(value || '').trim();
-    const matched = raw.match(/^([A-D])[\s.)\-:]+(.+)$/i);
-    if (!matched) return null;
-    return {
-        key: matched[1].toUpperCase(),
-        text: matched[2].trim()
-    };
-}
-
-function normalizeOption(option, index) {
-    const defaultKey = OPTION_KEYS[index] || `O${index + 1}`;
-    if (typeof option === 'object' && option !== null) {
-        const key = normalizeKey(option.key) || defaultKey;
-        const text = String(option.text || option.label || option.value || key).trim() || key;
-        return { key, text };
-    }
-    const raw = String(option || '').trim();
-    const legacy = parseLegacyOptionString(raw);
-    if (legacy) return legacy;
-    const key = normalizeKey(raw) || defaultKey;
-    const text = raw || key;
-    return { key, text };
-}
-
-export function getQuestionOptions(question) {
-    const source = Array.isArray(question?.options) ? question.options.slice(0, 4) : [];
-    return source.map((opt, idx) => normalizeOption(opt, idx));
-}
-
-function resolveAnswerKey(question, options) {
-    const direct = normalizeKey(question?.answerKey);
-    if (direct && options.some((opt) => opt.key === direct)) return direct;
-    const legacy = normalizeKey(question?.answer);
-    if (legacy && options.some((opt) => opt.key === legacy)) return legacy;
-    const answerText = String(question?.answer || '').trim();
-    const byText = options.find((opt) => opt.text === answerText);
-    if (byText) return byText.key;
-    return options[0]?.key || '';
-}
-
-function getChoiceLabel(choice) {
-    if (!choice) return '';
-    if (!choice.text || choice.text === choice.key) return choice.key;
-    return `${choice.key}. ${choice.text}`;
-}
-
-export function resolveChoice(question, rawValue) {
-    const raw = String(rawValue || '').trim();
-    if (!raw) return null;
-    const options = getQuestionOptions(question);
-    const key = normalizeKey(raw);
-    if (key) {
-        const byKey = options.find((opt) => opt.key === key);
-        if (byKey) return byKey;
-    }
-    const byText = options.find((opt) => opt.text === raw);
-    if (byText) return byText;
-    const byLabel = options.find((opt) => getChoiceLabel(opt) === raw);
-    if (byLabel) return byLabel;
-    return { key, text: raw };
-}
+export { getQuestionOptions, resolveChoice };
 
 export function flattenExamQuestions(examData) {
     const list = [];
@@ -101,7 +30,7 @@ export function flattenExamQuestions(examData) {
             const answerKey = resolveAnswerKey(q, options);
             const answerChoice = options.find((opt) => opt.key === answerKey) || null;
             list.push({
-                id: q.id || `${section}-${index + 1}-${uid()}`,
+                id: q.id || `${section}-${index + 1}-${createId()}`,
                 section,
                 sectionLabel: getSectionLabel(section),
                 question: q.question || '',
@@ -244,30 +173,6 @@ function speakByBrowserFallback(text) {
     });
 }
 
-function writeString(view, offset, str) {
-    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-}
-
-function pcmToWav(pcmBytes, sampleRate) {
-    const buffer = new ArrayBuffer(44 + pcmBytes.length);
-    const view = new DataView(buffer);
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + pcmBytes.length, true);
-    writeString(view, 8, 'WAVE');
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeString(view, 36, 'data');
-    view.setUint32(40, pcmBytes.length, true);
-    new Uint8Array(buffer, 44).set(pcmBytes);
-    return new Blob([buffer], { type: 'audio/wav' });
-}
-
 export async function playListeningQuestion(q, voiceName = 'Kore', prefetchedBase64 = '') {
     const key = `${q.id}:${voiceName}`;
     let base64 = prefetchedBase64 || listeningAudioCache.get(key);
@@ -293,7 +198,7 @@ export async function playListeningQuestion(q, voiceName = 'Kore', prefetchedBas
     const len = bytes.length;
     const pcm = new Uint8Array(len);
     for (let i = 0; i < len; i++) pcm[i] = bytes.charCodeAt(i);
-    const blob = pcmToWav(pcm, 24000);
+    const blob = pcmToWavBlob(pcm, 24000);
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     audio.onended = () => URL.revokeObjectURL(url);

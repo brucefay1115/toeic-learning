@@ -36,12 +36,13 @@
 
   <h2>2. Google Drive 權限範圍（重要）</h2>
   <p>
-    本服務使用的 Drive 權限為 <code>https://www.googleapis.com/auth/drive.file</code>（或同等範圍）。
+    本服務使用的 Drive 權限為 <code>https://www.googleapis.com/auth/drive.appdata</code>，
+    並會取得 Google 基本帳戶資訊範圍（<code>userinfo.profile</code>、<code>userinfo.email</code>）以顯示登入帳戶資訊。
     這代表：
   </p>
   <ul>
-    <li>本服務<strong>只能</strong>存取「本服務建立的檔案」以及「您明確授權給本服務的特定檔案」。</li>
-    <li>本服務<strong>不會</strong>也<strong>無法</strong>讀取或列出您 Google Drive 中的所有檔案。</li>
+    <li>本服務<strong>只能</strong>存取 Google Drive 的 App Data 隱藏應用資料夾內容（供本 App 備份/還原）。</li>
+    <li>本服務<strong>不會</strong>也<strong>無法</strong>讀取或列出您一般 Google Drive 檔案區中的所有檔案。</li>
   </ul>
 
   <h2>3. 我們如何使用您的資料</h2>

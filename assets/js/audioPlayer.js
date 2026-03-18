@@ -1,6 +1,7 @@
 // Audio player bar: play/pause, speed control, progress, segment highlighting.
 
 import { state, ICONS } from './state.js';
+import { pcmToWavBlob } from './audioCodec.js';
 
 const audioEl = document.getElementById('mainAudio');
 const playerBar = document.getElementById('playerBar');
@@ -25,30 +26,6 @@ export function setPlayerLoading(isLoading) {
     document.dispatchEvent(new CustomEvent('player-loading-changed'));
 }
 
-function writeString(v, o, s) {
-    for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i));
-}
-
-function pcmToWav(pcm, sr) {
-    const b = new ArrayBuffer(44 + pcm.length);
-    const v = new DataView(b);
-    writeString(v, 0, 'RIFF');
-    v.setUint32(4, 36 + pcm.length, true);
-    writeString(v, 8, 'WAVE');
-    writeString(v, 12, 'fmt ');
-    v.setUint32(16, 16, true);
-    v.setUint16(20, 1, true);
-    v.setUint16(22, 1, true);
-    v.setUint32(24, sr, true);
-    v.setUint32(28, sr * 2, true);
-    v.setUint16(32, 2, true);
-    v.setUint16(34, 16, true);
-    writeString(v, 36, 'data');
-    v.setUint32(40, pcm.length, true);
-    new Uint8Array(b, 44).set(pcm);
-    return new Blob([b], { type: 'audio/wav' });
-}
-
 function clearActiveSegmentState() {
     if (state.activeSegmentIndex >= 0 && state.segmentMetadata[state.activeSegmentIndex]) {
         state.segmentMetadata[state.activeSegmentIndex].element.classList.remove('active');
@@ -67,7 +44,7 @@ export function setupAudio(base64) {
 
     const bc = atob(base64), bn = new Array(bc.length);
     for (let i = 0; i < bc.length; i++) bn[i] = bc.charCodeAt(i);
-    const wavBlob = pcmToWav(new Uint8Array(bn), 24000);
+    const wavBlob = pcmToWavBlob(new Uint8Array(bn), 24000);
     if (state.audioBlobUrl) URL.revokeObjectURL(state.audioBlobUrl);
     state.audioBlobUrl = URL.createObjectURL(wavBlob);
     audioEl.src = state.audioBlobUrl;

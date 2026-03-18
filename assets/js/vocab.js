@@ -10,6 +10,15 @@ let _startSrsReview = null;
 let _vocabSubtab = 'notebook';
 let _lookupResult = null;
 
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 export function setSrsTrigger(fn) { _startSrsReview = fn; }
 export function setVocabSubtab(tab) {
     _vocabSubtab = tab === 'lookup' ? 'lookup' : 'notebook';
@@ -136,7 +145,7 @@ function validateLookupWordInput(rawWord) {
 function renderLookupMessage(message) {
     const resultEl = document.getElementById('vocabLookupResult');
     if (!resultEl) return;
-    resultEl.innerHTML = `<div class="vocab-lookup-empty">${message}</div>`;
+    resultEl.innerHTML = `<div class="vocab-lookup-empty">${escapeHtml(message)}</div>`;
 }
 
 export function buildSavedWordPayload(word, vocabItem = {}) {
@@ -236,24 +245,30 @@ function renderLookupResultCard() {
         return;
     }
     const item = _lookupResult;
+    const word = String(item.word || '');
+    const pos = String(item.pos || '');
+    const ipa = String(item.ipa || '');
+    const def = String(item.def || '');
+    const ex = String(item.ex || '');
+    const exZh = String(item.ex_zh || '');
     const card = document.createElement('div');
     card.className = 'vocab-lookup-result-card';
     card.innerHTML = `
         <div class="saved-word-top">
-            <span class="saved-word-en">${item.word || ''}</span>
+            <span class="saved-word-en">${escapeHtml(word)}</span>
             <button class="saved-word-speak" data-action="speak-word">${ICONS.speaker}</button>
         </div>
         <div class="vocab-lookup-meta">
-            ${item.pos ? `<span class="vocab-pos">${item.pos}</span>` : ''}
-            ${item.ipa ? `<span class="vocab-ipa">${item.ipa}</span>` : ''}
+            ${pos ? `<span class="vocab-pos">${escapeHtml(pos)}</span>` : ''}
+            ${ipa ? `<span class="vocab-ipa">${escapeHtml(ipa)}</span>` : ''}
         </div>
-        <div class="saved-word-zh">${item.def || ''}</div>
-        ${item.ex ? `<div class="vocab-lookup-ex">${item.ex} <button class="mini-speaker" data-action="speak-ex">${ICONS.speaker}</button></div>` : ''}
-        ${item.ex_zh ? `<div class="vocab-ex-zh">${item.ex_zh}</div>` : ''}
+        <div class="saved-word-zh">${escapeHtml(def)}</div>
+        ${ex ? `<div class="vocab-lookup-ex">${escapeHtml(ex)} <button class="mini-speaker" data-action="speak-ex">${ICONS.speaker}</button></div>` : ''}
+        ${exZh ? `<div class="vocab-ex-zh">${escapeHtml(exZh)}</div>` : ''}
         <div id="vocabLookupActionArea" class="wm-actions" style="margin-top:10px;"></div>
     `;
-    card.querySelector('[data-action="speak-word"]')?.addEventListener('click', () => speakText(item.word || ''));
-    card.querySelector('[data-action="speak-ex"]')?.addEventListener('click', () => speakText(item.ex || ''));
+    card.querySelector('[data-action="speak-word"]')?.addEventListener('click', () => speakText(word));
+    card.querySelector('[data-action="speak-ex"]')?.addEventListener('click', () => speakText(ex));
     resultEl.innerHTML = '';
     resultEl.appendChild(card);
     renderSaveButton(card.querySelector('#vocabLookupActionArea'), item.word, item, {
@@ -348,10 +363,8 @@ export async function renderVocabTab() {
         clearBtn.innerHTML = `<h3>${t('vocabClearMasteredTitle')}</h3><p>${t('vocabClearMasteredDesc', { count: lv5Words.length })}</p>`;
         clearBtn.onclick = async () => {
             if (!confirm(t('vocabClearMasteredConfirm', { count: lv5Words.length }))) return;
-            for (const w of lv5Words) {
-                await removeWordFromNotebook(w.id);
-            }
-            renderVocabTab();
+            await Promise.all(lv5Words.map((w) => removeWordFromNotebook(w.id)));
+            await renderVocabTab();
         };
         entryEl.appendChild(clearBtn);
     }

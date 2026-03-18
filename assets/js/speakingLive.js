@@ -3,6 +3,7 @@
 import { GoogleGenAI, Modality } from 'https://esm.run/@google/genai';
 import { LIVE_AUDIO_MODEL, state } from './state.js';
 import { t } from './i18n.js';
+import { SPEAKING_LEVELS, getSpeakingLevelByScore } from './speakingLevel.js';
 
 const INPUT_MIME = 'audio/pcm;rate=16000';
 const MEDIA_RESOLUTION_LOW = 'MEDIA_RESOLUTION_LOW'; // ~66-70 tokens/image
@@ -23,15 +24,6 @@ const listeners = {
     log: null,
     connected: null
 };
-
-const SPEAKING_LEVELS = ['beginner', 'intermediate', 'advanced'];
-
-function getSpeakingLevelByScore(score) {
-    const numericScore = Number(score) || 700;
-    if (numericScore <= 600) return 'beginner';
-    if (numericScore === 700) return 'intermediate';
-    return 'advanced';
-}
 
 function getSpeakingLevelConfig(level, score) {
     const resolvedLevel = SPEAKING_LEVELS.includes(level) ? level : getSpeakingLevelByScore(score);

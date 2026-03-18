@@ -2,8 +2,32 @@
 
 import { DB } from './db.js';
 import { t } from './i18n.js';
+import { logError, toErrorMessage } from './errorPolicy.js';
 
 let _callbacks = { renderHistory: null, loadLastSession: null, renderVocabTab: null };
+
+function isObject(value) {
+    return value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function sanitizeBackupPayload(raw) {
+    if (!isObject(raw)) throw new Error(t('driveRestoreInvalidPayload'));
+    const version = Number(raw.version) || 1;
+    const exportedAt = Number(raw.exportedAt) || Date.now();
+
+    const history = Array.isArray(raw.history)
+        ? raw.history.filter((item) => isObject(item) && item.id !== undefined)
+        : [];
+    const savedWords = Array.isArray(raw.savedWords)
+        ? raw.savedWords.filter((item) => isObject(item) && item.id !== undefined)
+        : [];
+
+    if (!history.length && !savedWords.length) {
+        throw new Error(t('driveRestoreInvalidPayload'));
+    }
+
+    return { version, exportedAt, history, savedWords };
+}
 
 export const DriveSync = {
     CLIENT_ID: '577652285741-f97oivf3f7h2u9b02hhq9man1f807v16.apps.googleusercontent.com',
@@ -25,7 +49,7 @@ export const DriveSync = {
             scope: this.SCOPES,
             callback: (resp) => {
                 if (resp.error) {
-                    console.error('GIS auth error:', resp);
+                    logError('GIS auth error', resp);
                     if (this._pendingLoginResolve) this._pendingLoginResolve(false);
                     this._pendingLoginResolve = null;
                     return;
@@ -63,7 +87,7 @@ export const DriveSync = {
                 this.updateUI();
                 return true;
             }
-        } catch (e) { /* ignore cache read errors */ }
+        } catch (e) { logError('Drive cache read failed', e); }
         if (!this.tokenClient) {
             this.init();
             if (!this.tokenClient) return false;
@@ -100,7 +124,7 @@ export const DriveSync = {
             await DB.setSetting('cloud_user_name', info.name || info.email || '');
             await DB.setSetting('cloud_sync_enabled', true);
             this.updateUI();
-        } catch (e) { console.warn('Failed to fetch user info:', e); }
+        } catch (e) { logError('Failed to fetch user info', e); }
     },
 
     async _apiFetch(url, opts = {}) {
@@ -132,7 +156,8 @@ export const DriveSync = {
     },
 
     async importData(jsonStr) {
-        const data = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        const parsed = typeof jsonStr === 'string' ? JSON.parse(jsonStr) : jsonStr;
+        const data = sanitizeBackupPayload(parsed);
         if (data.history) {
             await DB.clearHistory();
             for (const item of data.history) { await DB.addHistory(item); }
@@ -204,7 +229,7 @@ export const DriveSync = {
             btn.textContent = t('driveBackupDone');
             setTimeout(() => { btn.textContent = t('cloudBackupNowBtn'); btn.disabled = false; }, 2000);
         } catch (e) {
-            alert(t('driveBackupFailed', { message: e.message }));
+            alert(t('driveBackupFailed', { message: toErrorMessage(e) }));
             btn.textContent = t('cloudBackupNowBtn'); btn.disabled = false;
         }
     },
@@ -216,10 +241,11 @@ export const DriveSync = {
         try {
             const data = await this.download();
             if (!data) { alert(t('driveRestoreNotFound')); btn.textContent = t('cloudRestoreBtn'); btn.disabled = false; return; }
-            const date = data.exportedAt ? new Date(data.exportedAt).toLocaleString() : t('driveUnknownDate');
-            this._showRestorePrompt(data, date, btn);
+            const sanitized = sanitizeBackupPayload(data);
+            const date = sanitized.exportedAt ? new Date(sanitized.exportedAt).toLocaleString() : t('driveUnknownDate');
+            this._showRestorePrompt(sanitized, date, btn);
         } catch (e) {
-            alert(t('driveRestoreFailed', { message: e.message }));
+            alert(t('driveRestoreFailed', { message: toErrorMessage(e) }));
             btn.textContent = t('cloudRestoreBtn'); btn.disabled = false;
         }
     },
@@ -251,7 +277,7 @@ export const DriveSync = {
                 if (triggerBtn) { triggerBtn.textContent = t('cloudRestoreBtn'); triggerBtn.disabled = false; }
                 alert(t('driveRestoreSuccess'));
             } catch (e) {
-                alert(t('driveRestoreFailed', { message: e.message }));
+                alert(t('driveRestoreFailed', { message: toErrorMessage(e) }));
                 overlay.remove();
                 if (triggerBtn) { triggerBtn.textContent = t('cloudRestoreBtn'); triggerBtn.disabled = false; }
             }

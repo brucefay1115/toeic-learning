@@ -3,6 +3,7 @@
 import { state, TEXT_MODEL, TTS_MODEL } from './state.js';
 import { DB } from './db.js';
 import { getLocaleMeta } from './i18n.js';
+import { normalizeExamOutput } from './examNormalize.js';
 
 function ensureCandidateText(data) {
     if (data?.error) throw new Error(data.error.message || 'Gemini API error');
@@ -108,80 +109,6 @@ export async function validateWordWithLanguageTool(word) {
     } finally {
         clearTimeout(timeoutId);
     }
-}
-
-function normalizeExamQuestion(category, item, idx) {
-    const rawOptions = Array.isArray(item.options) ? item.options.slice(0, 4) : [];
-    const options = rawOptions.map((option, optionIndex) => {
-        const fallbackKey = ['A', 'B', 'C', 'D'][optionIndex] || `O${optionIndex + 1}`;
-        if (typeof option === 'object' && option !== null) {
-            return {
-                key: String(option.key || fallbackKey).trim().toUpperCase(),
-                text: String(option.text || option.label || option.value || fallbackKey).trim()
-            };
-        }
-        const text = String(option || '').trim();
-        const parsed = text.match(/^([A-D])[\s.)\-:]+(.+)$/i);
-        if (parsed) {
-            return { key: parsed[1].toUpperCase(), text: parsed[2].trim() };
-        }
-        if (/^[A-D]$/i.test(text)) {
-            return { key: text.toUpperCase(), text: text.toUpperCase() };
-        }
-        return { key: fallbackKey, text: text || fallbackKey };
-    });
-    const providedAnswerKey = String(item.answerKey || '').trim().toUpperCase();
-    const legacyAnswer = String(item.answer || '').trim();
-    const matchedByKey = options.find((opt) => opt.key === providedAnswerKey);
-    const matchedLegacyKey = options.find((opt) => opt.key === legacyAnswer.toUpperCase());
-    const matchedByText = options.find((opt) => opt.text === legacyAnswer);
-    const answerKey = matchedByKey?.key || matchedLegacyKey?.key || matchedByText?.key || options[0]?.key || 'A';
-    const answerText = options.find((opt) => opt.key === answerKey)?.text || '';
-    return {
-        id: item.id || `${category}-${idx + 1}`,
-        category,
-        question: item.question || '',
-        passage: item.passage || '',
-        options,
-        answerKey,
-        answerText,
-        answer: item.answer || answerKey,
-        audioText: item.audioText || '',
-        explanationSeed: item.explanationSeed || ''
-    };
-}
-
-function normalizeExamOutput(raw) {
-    const listening = (Array.isArray(raw?.listening) ? raw.listening : [])
-        .slice(0, 3)
-        .map((item, idx) => normalizeExamQuestion('listening', item, idx));
-
-    const vocab = (Array.isArray(raw?.vocabulary) ? raw.vocabulary : [])
-        .slice(0, 3)
-        .map((item, idx) => normalizeExamQuestion('vocabulary', item, idx));
-
-    const grammar = (Array.isArray(raw?.grammar) ? raw.grammar : [])
-        .slice(0, 3)
-        .map((item, idx) => normalizeExamQuestion('grammar', item, idx));
-
-    let readingQuestions = [];
-    if (Array.isArray(raw?.reading) && raw.reading.length) {
-        readingQuestions = raw.reading.map((q, idx) => ({
-            ...q,
-            id: q.id || `reading-${idx + 1}`,
-            passage: q.passage || ''
-        }));
-    } else if (Array.isArray(raw?.readingQuestions) && raw?.readingPassage) {
-        // Backward compatibility for previous schema: one passage + three questions.
-        readingQuestions = raw.readingQuestions.map((q, idx) => ({
-            ...q,
-            passage: raw.readingPassage,
-            id: q.id || `reading-${idx + 1}`
-        }));
-    }
-    const reading = readingQuestions.slice(0, 3).map((item, idx) => normalizeExamQuestion('reading', item, idx));
-
-    return { listening, reading, vocabulary: vocab, grammar };
 }
 
 export async function fetchExamQuestions(score) {

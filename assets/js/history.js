@@ -6,13 +6,28 @@ import { fetchGeminiTTS } from './apiGemini.js';
 import { renderContent } from './render.js';
 import { setupAudio, setPlayerLoading } from './audioPlayer.js';
 import { t } from './i18n.js';
+import { createId } from './id.js';
 
 let _deps = { switchTab: null, openArticleRecord: null, openExamRecord: null, openSpeakingRecord: null, onHistoryMutated: null };
 
 export function setDeps(deps) { _deps = { ..._deps, ...deps }; }
 
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function createHistoryRecordId() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return createId();
+}
+
+function isHistoryTabVisible() {
+    const tab = document.getElementById('tabHistory');
+    return !!tab && !tab.classList.contains('hidden');
 }
 
 export async function saveToHistory(data, audioBase64, voiceName, topic) {
@@ -30,7 +45,7 @@ export async function saveToHistory(data, audioBase64, voiceName, topic) {
     };
     try {
         await DB.addHistory(entry);
-        renderHistory();
+        if (isHistoryTabVisible()) renderHistory();
         return entry;
     }
     catch (e) { console.error("Save failed:", e); alert(t('historySaveFailed')); }
@@ -45,7 +60,7 @@ export async function savePracticeRecord(entry) {
         ...entry
     };
     await DB.addHistory(record);
-    renderHistory();
+    if (isHistoryTabVisible()) renderHistory();
 }
 
 export async function renderHistory() {
@@ -84,7 +99,7 @@ export async function renderHistory() {
                 : item.type === 'speaking'
                     ? (item.topic || item.title || t('historySpeakingTitle'))
                     : (item.title || '');
-            div.innerHTML = `<div class="history-content"><div class="history-title">${displayTitle}</div><span class="history-date">${item.date} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
+            div.innerHTML = `<div class="history-content"><div class="history-title">${escapeHtml(displayTitle)}</div><span class="history-date">${escapeHtml(item.date || '')} ${audioIcon} ${scoreBadge} ${voiceBadge} ${typeBadge} ${stageBadge}</span></div>`;
             div.onclick = (e) => {
                 if (e.target.closest('.delete-btn')) return;
                 if (item.type === 'article') {

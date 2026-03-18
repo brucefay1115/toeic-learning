@@ -1,6 +1,7 @@
 // PWA install prompt: platform-aware guide for adding the app to the home screen.
 
 import { t } from './i18n.js';
+import { safeLocalGet, safeLocalSet } from './storageSafe.js';
 
 const DISMISS_KEY = 'pwa_install_dismissed';
 const DISMISS_PERMANENT_KEY = 'pwa_install_never';
@@ -12,15 +13,15 @@ function isStandalone() {
 }
 
 function isDismissed() {
-  if (localStorage.getItem(DISMISS_PERMANENT_KEY)) return true;
-  const ts = parseInt(localStorage.getItem(DISMISS_KEY), 10);
+  if (safeLocalGet(DISMISS_PERMANENT_KEY)) return true;
+  const ts = parseInt(safeLocalGet(DISMISS_KEY), 10);
   if (!ts) return false;
   return (Date.now() - ts) < COOLDOWN_DAYS * 86400000;
 }
 
 function dismiss(permanent) {
-  if (permanent) localStorage.setItem(DISMISS_PERMANENT_KEY, '1');
-  else localStorage.setItem(DISMISS_KEY, String(Date.now()));
+  if (permanent) safeLocalSet(DISMISS_PERMANENT_KEY, '1');
+  else safeLocalSet(DISMISS_KEY, String(Date.now()));
   const el = document.getElementById('installOverlay');
   if (el) el.remove();
 }

@@ -1,48 +1,17 @@
 // PWA Service Worker registration, automatic update, and post-update modal.
 
 import { t } from './i18n.js';
+import { safeLocalGet, safeLocalRemove, safeLocalSet, safeSessionGet, safeSessionRemove, safeSessionSet } from './storageSafe.js';
+import { fetchVersionInfo, normalizeVersionInfo } from './versioning.js';
 
 const UPDATE_PENDING_KEY = 'update_ack_pending';
 const UPDATE_SHOWN_SESSION_KEY = 'update_prompt_shown_version';
-
-function safeSessionGet(key) {
-  try { return sessionStorage.getItem(key); } catch { return null; }
-}
-
-function safeSessionSet(key, value) {
-  try { sessionStorage.setItem(key, value); } catch { /* no-op */ }
-}
-
-function safeSessionRemove(key) {
-  try { sessionStorage.removeItem(key); } catch { /* no-op */ }
-}
-
-function safeLocalGet(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-
-function safeLocalSet(key, value) {
-  try { localStorage.setItem(key, value); } catch { /* no-op */ }
-}
-
-function safeLocalRemove(key) {
-  try { localStorage.removeItem(key); } catch { /* no-op */ }
-}
-
-function normalizeUpdateInfo(info) {
-  if (!info || typeof info !== 'object') return null;
-  if (!info.version || typeof info.version !== 'string') return null;
-  return {
-    version: info.version,
-    changes: Array.isArray(info.changes) ? info.changes : [],
-  };
-}
 
 function readPendingUpdateInfo() {
   const raw = safeLocalGet(UPDATE_PENDING_KEY);
   if (!raw) return null;
   try {
-    const info = normalizeUpdateInfo(JSON.parse(raw));
+    const info = normalizeVersionInfo(JSON.parse(raw));
     if (!info) {
       safeLocalRemove(UPDATE_PENDING_KEY);
       return null;
@@ -55,7 +24,7 @@ function readPendingUpdateInfo() {
 }
 
 function writePendingUpdateInfo(info) {
-  const normalized = normalizeUpdateInfo(info);
+  const normalized = normalizeVersionInfo(info);
   if (!normalized) return;
   safeLocalSet(UPDATE_PENDING_KEY, JSON.stringify({
     ...normalized,
@@ -64,10 +33,7 @@ function writePendingUpdateInfo(info) {
 }
 
 async function fetchLatestVersionInfo() {
-  const res = await fetch('./version.json?t=' + Date.now());
-  if (!res.ok) throw new Error('Failed to fetch version.json');
-  const data = await res.json();
-  return normalizeUpdateInfo(data);
+  return fetchVersionInfo(true);
 }
 
 function showUpdateModal(info, options = {}) {
@@ -115,6 +81,16 @@ function autoActivate(worker) {
   if (worker) worker.postMessage('skipWaiting');
 }
 
+async function purgeAppCaches() {
+  if (!('caches' in window)) return;
+  const keys = await caches.keys();
+  await Promise.all(
+    keys
+      .filter((k) => k.startsWith('toeic-tutor-static'))
+      .map((k) => caches.delete(k))
+  );
+}
+
 export async function initUpdater() {
   checkPostUpdateModal();
 
@@ -134,6 +110,7 @@ export async function initUpdater() {
       }
     } catch { /* proceed with reload anyway */ }
 
+    try { await purgeAppCaches(); } catch { /* keep reload resilient */ }
     window.location.reload();
   });
 

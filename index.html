@@ -16,6 +16,10 @@
       html.app-booting body > * {
         visibility: hidden;
       }
+      html, body {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+      }
       html.app-booting #bootLoading {
         visibility: visible;
       }
@@ -27,6 +31,7 @@
         justify-content: center;
         background: #f2f2f7;
         z-index: 99999;
+        contain: layout paint;
       }
       #bootLoading .boot-loading-card {
         display: flex;
@@ -35,10 +40,12 @@
         gap: 10px;
         color: #5856d6;
         font-weight: 600;
+        line-height: 1;
       }
       #bootLoading .boot-loading-spinner {
         width: 30px;
         height: 30px;
+        box-sizing: border-box;
         border-radius: 50%;
         border: 3px solid rgba(88, 86, 214, 0.2);
         border-top-color: #5856d6;
@@ -113,9 +120,11 @@
         fetch("./version.json?t=" + Date.now())
           .then(function (res) { return res.ok ? res.json() : null; })
           .then(function (data) {
+            window.__TOEIC_VERSION_INFO__ = data || null;
             mountAssets(data && data.version ? data.version : "");
           })
           .catch(function () {
+            window.__TOEIC_VERSION_INFO__ = null;
             mountAssets("");
           });
       })();
