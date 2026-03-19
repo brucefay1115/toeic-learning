@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'toeic-tutor-static';
-const CACHE_NAME = `${CACHE_PREFIX}-v1`;
+const CACHE_NAME = `${CACHE_PREFIX}-v2`;
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -10,14 +10,23 @@ const STATIC_ASSETS = [
   './assets/js/db.js',
   './assets/js/apiGemini.js',
   './assets/js/render.js',
+  './assets/js/practiceViews.js',
   './assets/js/vocab.js',
   './assets/js/srs.js',
   './assets/js/audioPlayer.js',
+  './assets/js/audioCodec.js',
   './assets/js/history.js',
   './assets/js/speakingLive.js',
+  './assets/js/speakingLevel.js',
+  './assets/js/speakingLogView.js',
   './assets/js/exam.js',
+  './assets/js/examNormalize.js',
   './assets/js/mic-processor.js',
   './assets/js/driveSync.js',
+  './assets/js/storageSafe.js',
+  './assets/js/versioning.js',
+  './assets/js/errorPolicy.js',
+  './assets/js/id.js',
   './assets/js/updater.js',
   './assets/js/installPrompt.js',
   './assets/js/i18n.js',

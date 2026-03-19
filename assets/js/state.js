@@ -65,7 +65,7 @@ export function getNextReviewTime(level) {
     return now.getTime() + days * 86400000;
 }
 
-export const TEXT_MODEL = "gemini-2.5-flash";
+export const TEXT_MODEL = "gemini-3.1-flash-lite-preview";
 export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const LIVE_AUDIO_MODEL = "gemini-2.5-flash-native-audio-preview-12-2025";
 
