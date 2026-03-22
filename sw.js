@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'toeic-tutor-static';
-const CACHE_NAME = `${CACHE_PREFIX}-v10`;
+const CACHE_NAME = `${CACHE_PREFIX}-v11`;
 
 const STATIC_ASSETS = [
   './manifest.json',
