@@ -1,10 +1,10 @@
 // PWA Service Worker registration, automatic update, and post-update modal.
 
 import { t } from './i18n.js';
+import { DB } from './db.js';
 import {
   safeLocalGet,
   safeLocalRemove,
-  safeLocalSet,
   safeSessionGet,
   safeSessionRemove,
   safeSessionSet
@@ -15,12 +15,25 @@ const UPDATE_ACK_VERSION_KEY = 'update_ack_version';
 const LEGACY_PENDING_KEY = 'update_ack_pending';
 const PENDING_SW_CHANGELOG_KEY = 'toeic_pending_sw_changelog';
 
-function getAcknowledgedVersion() {
-  return safeLocalGet(UPDATE_ACK_VERSION_KEY);
+async function getAcknowledgedVersion() {
+  try {
+    let v = await DB.getSetting(UPDATE_ACK_VERSION_KEY);
+    if (v != null) return v;
+    const legacy = safeLocalGet(UPDATE_ACK_VERSION_KEY);
+    if (legacy) {
+      await DB.setSetting(UPDATE_ACK_VERSION_KEY, legacy);
+      safeLocalRemove(UPDATE_ACK_VERSION_KEY);
+      return legacy;
+    }
+    return null;
+  } catch {
+    return safeLocalGet(UPDATE_ACK_VERSION_KEY);
+  }
 }
 
-function setAcknowledgedVersion(version) {
-  safeLocalSet(UPDATE_ACK_VERSION_KEY, version);
+async function setAcknowledgedVersion(version) {
+  await DB.setSetting(UPDATE_ACK_VERSION_KEY, version);
+  safeLocalRemove(UPDATE_ACK_VERSION_KEY);
 }
 
 function migrateLegacyPendingKey() {
@@ -49,14 +62,19 @@ function showUpdateModal(info, { pendingSession = false } = {}) {
   document.body.appendChild(overlay);
 
   document.getElementById('btnUpdateAck').addEventListener('click', () => {
-    setAcknowledgedVersion(info.version);
-    if (pendingSession) safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
-    overlay.remove();
+    setAcknowledgedVersion(info.version)
+      .catch(() => {})
+      .finally(() => {
+        if (pendingSession) safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
+        overlay.remove();
+      });
   });
 }
 
 async function maybeShowUpdateNotice() {
   migrateLegacyPendingKey();
+
+  const ack = await getAcknowledgedVersion();
 
   let pendingNorm = null;
   const pendingRaw = safeSessionGet(PENDING_SW_CHANGELOG_KEY);
@@ -78,12 +96,12 @@ async function maybeShowUpdateNotice() {
 
   const normalized = normalizeVersionInfo(info);
 
-  if (normalized && normalized.version === getAcknowledgedVersion()) {
+  if (normalized && normalized.version === ack) {
     safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
     return;
   }
 
-  if (pendingNorm && pendingNorm.version !== getAcknowledgedVersion()) {
+  if (pendingNorm && pendingNorm.version !== ack) {
     const useForModal =
       normalized && normalized.version === pendingNorm.version
         ? normalized
@@ -102,7 +120,7 @@ async function maybeShowUpdateNotice() {
 
   if (!normalized) return;
 
-  if (normalized.version === getAcknowledgedVersion()) return;
+  if (normalized.version === ack) return;
 
   showUpdateModal(normalized);
 }
