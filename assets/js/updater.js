@@ -1,44 +1,26 @@
 // PWA Service Worker registration, automatic update, and post-update modal.
 
 import { t } from './i18n.js';
-import { safeLocalGet, safeLocalRemove, safeLocalSet, safeSessionGet, safeSessionRemove, safeSessionSet } from './storageSafe.js';
-import { fetchVersionInfo, normalizeVersionInfo } from './versioning.js';
+import { safeLocalGet, safeLocalRemove, safeLocalSet } from './storageSafe.js';
+import { fetchVersionInfo, getBootVersionInfo, normalizeVersionInfo } from './versioning.js';
 
-const UPDATE_PENDING_KEY = 'update_ack_pending';
-const UPDATE_SHOWN_SESSION_KEY = 'update_prompt_shown_version';
+const UPDATE_ACK_VERSION_KEY = 'update_ack_version';
+const LEGACY_PENDING_KEY = 'update_ack_pending';
 
-function readPendingUpdateInfo() {
-  const raw = safeLocalGet(UPDATE_PENDING_KEY);
-  if (!raw) return null;
-  try {
-    const info = normalizeVersionInfo(JSON.parse(raw));
-    if (!info) {
-      safeLocalRemove(UPDATE_PENDING_KEY);
-      return null;
-    }
-    return info;
-  } catch {
-    safeLocalRemove(UPDATE_PENDING_KEY);
-    return null;
-  }
+function getAcknowledgedVersion() {
+  return safeLocalGet(UPDATE_ACK_VERSION_KEY);
 }
 
-function writePendingUpdateInfo(info) {
-  const normalized = normalizeVersionInfo(info);
-  if (!normalized) return;
-  safeLocalSet(UPDATE_PENDING_KEY, JSON.stringify({
-    ...normalized,
-    detectedAt: Date.now(),
-  }));
+function setAcknowledgedVersion(version) {
+  safeLocalSet(UPDATE_ACK_VERSION_KEY, version);
 }
 
-async function fetchLatestVersionInfo() {
-  return fetchVersionInfo(true);
+function migrateLegacyPendingKey() {
+  safeLocalRemove(LEGACY_PENDING_KEY);
 }
 
-function showUpdateModal(info, options = {}) {
+function showUpdateModal(info) {
   if (document.getElementById('updateOverlay')) return;
-  const { acknowledgeOnClose = true } = options;
 
   const overlay = document.createElement('div');
   overlay.id = 'updateOverlay';
@@ -52,29 +34,52 @@ function showUpdateModal(info, options = {}) {
         ${info.changes.map((c) => `<li>${c}</li>`).join('')}
       </ul>
       <p class="update-modal-notice">${t('updaterNotice')}</p>
-      <button class="update-modal-btn" id="btnUpdateAck">${acknowledgeOnClose ? t('updaterAck') : t('updaterClose')}</button>
+      <button class="update-modal-btn" id="btnUpdateAck">${t('updaterAck')}</button>
     </div>
   `;
 
   document.body.appendChild(overlay);
 
   document.getElementById('btnUpdateAck').addEventListener('click', () => {
-    if (acknowledgeOnClose) {
-      safeLocalRemove(UPDATE_PENDING_KEY);
-      safeSessionRemove(UPDATE_SHOWN_SESSION_KEY);
-    }
+    setAcknowledgedVersion(info.version);
     overlay.remove();
   });
 }
 
-function checkPostUpdateModal() {
-  const info = readPendingUpdateInfo();
-  if (!info) return;
+async function maybeShowUpdateNotice() {
+  migrateLegacyPendingKey();
 
-  if (safeSessionGet(UPDATE_SHOWN_SESSION_KEY) === info.version) return;
+  let info = getBootVersionInfo();
+  try {
+    const net = await fetchVersionInfo(true);
+    if (net) info = net;
+  } catch {
+    /* use boot-only */
+  }
 
-  safeSessionSet(UPDATE_SHOWN_SESSION_KEY, info.version);
-  showUpdateModal(info, { acknowledgeOnClose: true });
+  const normalized = normalizeVersionInfo(info);
+  if (!normalized) return;
+
+  if (normalized.version === getAcknowledgedVersion()) return;
+
+  showUpdateModal(normalized);
+}
+
+function scheduleUpdateNoticeAfterAppReady() {
+  window.addEventListener(
+    'toeic-app-ready',
+    () => {
+      const runWhenRevealed = () => {
+        if (document.documentElement.classList.contains('app-booting')) {
+          requestAnimationFrame(runWhenRevealed);
+          return;
+        }
+        maybeShowUpdateNotice().catch(() => {});
+      };
+      requestAnimationFrame(runWhenRevealed);
+    },
+    { once: true }
+  );
 }
 
 function autoActivate(worker) {
@@ -92,7 +97,7 @@ async function purgeAppCaches() {
 }
 
 export async function initUpdater() {
-  checkPostUpdateModal();
+  scheduleUpdateNoticeAfterAppReady();
 
   if (!('serviceWorker' in navigator)) return;
 
@@ -103,14 +108,10 @@ export async function initUpdater() {
     refreshing = true;
 
     try {
-      const info = await fetchLatestVersionInfo();
-      if (info) {
-        writePendingUpdateInfo(info);
-        safeSessionRemove(UPDATE_SHOWN_SESSION_KEY);
-      }
-    } catch { /* proceed with reload anyway */ }
-
-    try { await purgeAppCaches(); } catch { /* keep reload resilient */ }
+      await purgeAppCaches();
+    } catch {
+      /* keep reload resilient */
+    }
     window.location.reload();
   });
 
@@ -145,9 +146,7 @@ export async function initUpdater() {
     window.addEventListener('pageshow', (e) => {
       if (e.persisted) triggerUpdate();
     });
-
   } catch (err) {
     console.warn('SW registration failed:', err);
   }
 }
-

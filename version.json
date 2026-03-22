@@ -1,7 +1,7 @@
 {
-  "version": "1.2.9.3",
+  "version": "1.2.9.4",
   "date": "2026-03-22",
   "changes": [
-    "更新Gemini模型為gemini-flash-latest"
+    "更新視窗邏輯調整"
   ]
 }
