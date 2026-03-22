@@ -10,7 +10,7 @@ import { renderContent, toggleEnglish, toggleTranslation, updateToggleButtons } 
 import { closeModal, renderVocabTab, setSrsTrigger, setVocabSubtab, handleLookupSearch } from './vocab.js';
 import { startSrsReview, closeSrsReview, finishSrsReview, setOnFinish } from './srs.js';
 import { saveToHistory, savePracticeRecord, renderHistory, loadSession, loadLastSession, clearHistory, setDeps as setHistoryDeps } from './history.js';
-import { initUpdater } from './updater.js';
+import { registerServiceWorkerUpdater, scheduleUpdateNoticeAfterAppReady } from './updater.js';
 import { initInstallPrompt } from './installPrompt.js';
 import { startSpeakingSession, stopSpeakingSession } from './speakingLive.js';
 import { flattenExamQuestions, renderExamQuestions, gradeExam, buildWrongPayload, playListeningQuestion, resolveChoice } from './exam.js';
@@ -308,7 +308,7 @@ function initAnnouncementContent() {
 function initPostLocalePrompts() {
     // Keep this order: locale is already applied, then show prompt UIs.
     initAnnouncementContent();
-    initUpdater();
+    scheduleUpdateNoticeAfterAppReady();
     initInstallPrompt();
 }
 
@@ -964,5 +964,10 @@ GENERATE_BTN.onclick = async () => {
         }
         initPostLocalePrompts();
     } catch (e) { logError('Init failed', e); keyModal.classList.add('active'); }
-    finally { window.dispatchEvent(new CustomEvent('toeic-app-ready')); }
+    finally {
+        window.dispatchEvent(new CustomEvent('toeic-app-ready'));
+        queueMicrotask(() => {
+            registerServiceWorkerUpdater().catch(() => {});
+        });
+    }
 })();

@@ -1,11 +1,19 @@
 // PWA Service Worker registration, automatic update, and post-update modal.
 
 import { t } from './i18n.js';
-import { safeLocalGet, safeLocalRemove, safeLocalSet } from './storageSafe.js';
+import {
+  safeLocalGet,
+  safeLocalRemove,
+  safeLocalSet,
+  safeSessionGet,
+  safeSessionRemove,
+  safeSessionSet
+} from './storageSafe.js';
 import { fetchVersionInfo, getBootVersionInfo, normalizeVersionInfo } from './versioning.js';
 
 const UPDATE_ACK_VERSION_KEY = 'update_ack_version';
 const LEGACY_PENDING_KEY = 'update_ack_pending';
+const PENDING_SW_CHANGELOG_KEY = 'toeic_pending_sw_changelog';
 
 function getAcknowledgedVersion() {
   return safeLocalGet(UPDATE_ACK_VERSION_KEY);
@@ -19,7 +27,7 @@ function migrateLegacyPendingKey() {
   safeLocalRemove(LEGACY_PENDING_KEY);
 }
 
-function showUpdateModal(info) {
+function showUpdateModal(info, { pendingSession = false } = {}) {
   if (document.getElementById('updateOverlay')) return;
 
   const overlay = document.createElement('div');
@@ -42,12 +50,23 @@ function showUpdateModal(info) {
 
   document.getElementById('btnUpdateAck').addEventListener('click', () => {
     setAcknowledgedVersion(info.version);
+    if (pendingSession) safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
     overlay.remove();
   });
 }
 
 async function maybeShowUpdateNotice() {
   migrateLegacyPendingKey();
+
+  let pendingNorm = null;
+  const pendingRaw = safeSessionGet(PENDING_SW_CHANGELOG_KEY);
+  if (pendingRaw) {
+    try {
+      pendingNorm = normalizeVersionInfo(JSON.parse(pendingRaw));
+    } catch {
+      safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
+    }
+  }
 
   let info = getBootVersionInfo();
   try {
@@ -58,6 +77,29 @@ async function maybeShowUpdateNotice() {
   }
 
   const normalized = normalizeVersionInfo(info);
+
+  if (normalized && normalized.version === getAcknowledgedVersion()) {
+    safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
+    return;
+  }
+
+  if (pendingNorm && pendingNorm.version !== getAcknowledgedVersion()) {
+    const useForModal =
+      normalized && normalized.version === pendingNorm.version
+        ? normalized
+        : !normalized && pendingNorm
+          ? pendingNorm
+          : null;
+
+    if (useForModal) {
+      showUpdateModal(useForModal, { pendingSession: true });
+      return;
+    }
+    if (normalized && normalized.version !== pendingNorm.version) {
+      safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
+    }
+  }
+
   if (!normalized) return;
 
   if (normalized.version === getAcknowledgedVersion()) return;
@@ -65,7 +107,7 @@ async function maybeShowUpdateNotice() {
   showUpdateModal(normalized);
 }
 
-function scheduleUpdateNoticeAfterAppReady() {
+export function scheduleUpdateNoticeAfterAppReady() {
   window.addEventListener(
     'toeic-app-ready',
     () => {
@@ -96,9 +138,21 @@ async function purgeAppCaches() {
   );
 }
 
-export async function initUpdater() {
-  scheduleUpdateNoticeAfterAppReady();
+async function persistPendingChangelogBeforeReload() {
+  let info = getBootVersionInfo();
+  try {
+    const net = await fetchVersionInfo(true);
+    if (net) info = net;
+  } catch {
+    /* use boot-only */
+  }
+  const normalized = normalizeVersionInfo(info);
+  if (normalized) {
+    safeSessionSet(PENDING_SW_CHANGELOG_KEY, JSON.stringify(normalized));
+  }
+}
 
+export async function registerServiceWorkerUpdater() {
   if (!('serviceWorker' in navigator)) return;
 
   let refreshing = false;
@@ -106,6 +160,12 @@ export async function initUpdater() {
   navigator.serviceWorker.addEventListener('controllerchange', async () => {
     if (refreshing) return;
     refreshing = true;
+
+    try {
+      await persistPendingChangelogBeforeReload();
+    } catch {
+      /* keep reload resilient */
+    }
 
     try {
       await purgeAppCaches();
