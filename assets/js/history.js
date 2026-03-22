@@ -133,7 +133,7 @@ export function loadSession(item) {
     state.currentData = item.data;
     if (item.score) {
         state.targetScore = item.score;
-        document.querySelectorAll('.score-chip').forEach(c => c.classList.toggle('active', parseInt(c.innerText) === item.score));
+        document.querySelectorAll('#scoreSelector .score-chip, #examScoreSelector .score-chip').forEach(c => c.classList.toggle('active', parseInt(c.innerText) === item.score));
     }
     state.lastUsedVoice = item.voice || null;
     renderContent(item.data, item.voice || null);
