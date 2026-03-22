@@ -14,6 +14,8 @@ import { fetchVersionInfo, getBootVersionInfo, normalizeVersionInfo } from './ve
 const UPDATE_ACK_VERSION_KEY = 'update_ack_version';
 const LEGACY_PENDING_KEY = 'update_ack_pending';
 const PENDING_SW_CHANGELOG_KEY = 'toeic_pending_sw_changelog';
+/** When set, SW already activated but reload was deferred until update modal is dismissed. */
+const DEFERRED_SW_RELOAD_KEY = 'toeic_sw_reload_deferred';
 
 async function getAcknowledgedVersion() {
   try {
@@ -64,9 +66,18 @@ function showUpdateModal(info, { pendingSession = false } = {}) {
   document.getElementById('btnUpdateAck').addEventListener('click', () => {
     setAcknowledgedVersion(info.version)
       .catch(() => {})
-      .finally(() => {
-        if (pendingSession) safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
+      .finally(async () => {
+        safeSessionRemove(PENDING_SW_CHANGELOG_KEY);
         overlay.remove();
+        if (safeSessionGet(DEFERRED_SW_RELOAD_KEY)) {
+          safeSessionRemove(DEFERRED_SW_RELOAD_KEY);
+          try {
+            await purgeAppCaches();
+          } catch {
+            /* ignore */
+          }
+          window.location.reload();
+        }
       });
   });
 }
@@ -183,6 +194,14 @@ export async function registerServiceWorkerUpdater() {
       await persistPendingChangelogBeforeReload();
     } catch {
       /* keep reload resilient */
+    }
+
+    // If the update modal is open, reloading would destroy it before the user taps ack.
+    // Defer purge+reload until ack (see showUpdateModal).
+    if (document.getElementById('updateOverlay')) {
+      safeSessionSet(DEFERRED_SW_RELOAD_KEY, '1');
+      refreshing = false;
+      return;
     }
 
     try {
