@@ -85,9 +85,9 @@ export const VOICE_NAMES = VOICE_OPTIONS.filter(v => v.name !== 'random').map(v 
 
 /** Accent preset for live speaking (UI + prompt). `random` picks one of us/uk/au/in per session. */
 export const SPEAKING_ACCENT_OPTIONS = [
-    { id: 'us', labelKey: 'speakingAccentOptionUsLabel', descKey: 'speakingAccentOptionUsDesc' },
-    { id: 'uk', labelKey: 'speakingAccentOptionUkLabel', descKey: 'speakingAccentOptionUkDesc' },
-    { id: 'au', labelKey: 'speakingAccentOptionAuLabel', descKey: 'speakingAccentOptionAuDesc' },
-    { id: 'in', labelKey: 'speakingAccentOptionInLabel', descKey: 'speakingAccentOptionInDesc' },
-    { id: 'random', labelKey: 'speakingAccentOptionRandomLabel', descKey: 'speakingAccentOptionRandomDesc' }
+    { id: 'us', labelKey: 'speakingAccentOptionUsLabel' },
+    { id: 'uk', labelKey: 'speakingAccentOptionUkLabel' },
+    { id: 'au', labelKey: 'speakingAccentOptionAuLabel' },
+    { id: 'in', labelKey: 'speakingAccentOptionInLabel' },
+    { id: 'random', labelKey: 'speakingAccentOptionRandomLabel' }
 ];

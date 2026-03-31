@@ -220,9 +220,15 @@
                         <button class="score-chip speaking-level-chip" data-level="intermediate" data-i18n="speakingLevelIntermediate">中級</button>
                         <button class="score-chip speaking-level-chip" data-level="advanced" data-i18n="speakingLevelAdvanced">困難</button>
                     </div>
-                    <div class="practice-section">
+                    <div class="practice-section speaking-accent-section">
                         <h3 class="practice-label" data-i18n="speakingAccentLabel">英語腔調</h3>
-                        <div class="voice-selector" id="speakingAccentSelector"></div>
+                        <div class="voice-selector" id="speakingAccentSelector">
+                            <button type="button" class="voice-chip" data-accent="us" data-i18n="speakingAccentOptionUsLabel">美式</button>
+                            <button type="button" class="voice-chip" data-accent="uk" data-i18n="speakingAccentOptionUkLabel">英式</button>
+                            <button type="button" class="voice-chip" data-accent="au" data-i18n="speakingAccentOptionAuLabel">澳洲</button>
+                            <button type="button" class="voice-chip" data-accent="in" data-i18n="speakingAccentOptionInLabel">印度</button>
+                            <button type="button" class="voice-chip active" data-accent="random" data-i18n="speakingAccentOptionRandomLabel">隨機</button>
+                        </div>
                     </div>
                     <h3 class="practice-label" data-i18n="topicSelectLabel">主題（可選一個）</h3>
                     <div class="topic-preset-group" id="speakingPresetGroup">

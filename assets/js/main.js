@@ -209,22 +209,29 @@ function renderVoiceOptions() {
 renderVoiceOptions();
 
 const speakingAccentSelector = document.getElementById('speakingAccentSelector');
-function renderSpeakingAccentOptions() {
+const SPEAKING_ACCENT_IDS = SPEAKING_ACCENT_OPTIONS.map((o) => o.id);
+
+function syncSpeakingAccentSelector() {
     if (!speakingAccentSelector) return;
-    speakingAccentSelector.innerHTML = '';
-    SPEAKING_ACCENT_OPTIONS.forEach((opt) => {
-        const chip = document.createElement('div');
-        chip.className = `voice-chip ${opt.id === state.speakingState.accent ? 'active' : ''}`;
-        chip.innerHTML = `<span>${t(opt.labelKey)}</span><span class="voice-desc">${t(opt.descKey)}</span>`;
-        chip.onclick = () => {
-            state.speakingState.accent = opt.id;
-            speakingAccentSelector.querySelectorAll('.voice-chip').forEach((c) => c.classList.remove('active'));
-            chip.classList.add('active');
-        };
-        speakingAccentSelector.appendChild(chip);
+    let accent = state.speakingState.accent;
+    if (!SPEAKING_ACCENT_IDS.includes(accent)) {
+        accent = 'random';
+        state.speakingState.accent = accent;
+    }
+    speakingAccentSelector.querySelectorAll('[data-accent]').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.accent === accent);
     });
 }
-renderSpeakingAccentOptions();
+
+document.querySelectorAll('#speakingAccentSelector [data-accent]').forEach((btn) => {
+    btn.onclick = () => {
+        const id = btn.dataset.accent;
+        if (!SPEAKING_ACCENT_IDS.includes(id)) return;
+        state.speakingState.accent = id;
+        syncSpeakingAccentSelector();
+    };
+});
+syncSpeakingAccentSelector();
 
 /* ── Settings / API Key modal ── */
 const keyModal = document.getElementById('keyModal');
@@ -251,7 +258,7 @@ function applyLocaleToUI() {
     document.title = t('appTitle');
     setAnnouncementContent();
     renderVoiceOptions();
-    renderSpeakingAccentOptions();
+    syncSpeakingAccentSelector();
     renderSpeakingLevelSwitch();
     const activeTopicChip = document.querySelector('#speakingPresetGroup .topic-chip.active');
     if (activeTopicChip?.dataset.topicKey) {

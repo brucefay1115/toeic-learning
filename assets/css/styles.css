@@ -377,6 +377,11 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
 }
 .practice-mode-panel { margin-top: 20px; }
 .practice-section { margin-top: 24px; text-align: left; }
+.practice-section.speaking-accent-section {
+    text-align: center;
+    margin-bottom: 20px;
+}
+.practice-section.speaking-accent-section .voice-selector { justify-content: center; }
 .practice-label { font-size: 15px; font-weight: 600; margin: 0 0 8px; color: var(--text-main); }
 .speaking-level-switch {
     margin-bottom: 16px;
@@ -556,6 +561,10 @@ h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--primary); }
     padding: 8px 14px; background: white; border-radius: 50px; font-weight: 500; font-size: 13px;
     color: var(--text-sub); border: 1.5px solid #e0e0e0; cursor: pointer; transition: all 0.2s;
     text-align: center;
+}
+button.voice-chip {
+    font-family: inherit;
+    margin: 0;
 }
 .voice-chip .voice-desc { font-size: 10px; opacity: 0.7; display: block; }
 .voice-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
