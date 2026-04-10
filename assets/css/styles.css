@@ -607,12 +607,44 @@ button.voice-chip {
     flex: 1;
     min-width: 0;
     margin-bottom: 0;
+    padding-right: 32px;
+}
+.vocab-lookup-input-inner {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
 }
 .vocab-lookup-btn {
     width: auto;
     margin: 0;
     padding: 0 14px;
     min-height: 44px;
+}
+.vocab-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: #e0e0e0;
+    color: #666;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.2s;
+}
+.vocab-clear-btn:active {
+    background: #ccc;
+}
+.vocab-clear-btn.hidden {
+    display: none;
 }
 .vocab-lookup-hint {
     margin: 10px 2px 14px;

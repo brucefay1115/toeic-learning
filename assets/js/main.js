@@ -561,11 +561,23 @@ document.querySelectorAll('#vocabSubtabSwitch .vocab-subtab-btn').forEach((btn) 
     btn.onclick = () => setVocabSubtab(btn.dataset.vocabSubtab);
 });
 document.getElementById('btnVocabLookup').onclick = () => handleLookupSearch();
-document.getElementById('vocabLookupInput').addEventListener('keydown', (event) => {
+const vocabLookupInput = document.getElementById('vocabLookupInput');
+const btnClearVocabLookup = document.getElementById('btnClearVocabLookup');
+vocabLookupInput.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter') return;
     event.preventDefault();
     handleLookupSearch();
 });
+vocabLookupInput.addEventListener('input', () => {
+    if (btnClearVocabLookup) btnClearVocabLookup.classList.toggle('hidden', !vocabLookupInput.value);
+});
+if (btnClearVocabLookup) {
+    btnClearVocabLookup.onclick = () => {
+        vocabLookupInput.value = '';
+        btnClearVocabLookup.classList.add('hidden');
+        vocabLookupInput.focus();
+    };
+}
 document.querySelector('#wordModal .wm-btn.secondary').onclick = () => closeModal();
 const btnAnnouncement = document.getElementById('btnAnnouncement');
 const btnCloseAnnouncementModal = document.getElementById('btnCloseAnnouncementModal');

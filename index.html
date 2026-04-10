@@ -276,7 +276,10 @@
         </div>
         <div id="vocabLookupPanel" class="hidden">
             <div class="vocab-lookup-input-wrap">
-                <input type="text" id="vocabLookupInput" class="topic-input vocab-lookup-input" data-i18n-placeholder="vocabLookupPlaceholder" placeholder="輸入英文單字或片語，例如: look forward to">
+                <div class="vocab-lookup-input-inner">
+                    <input type="text" id="vocabLookupInput" class="topic-input vocab-lookup-input" data-i18n-placeholder="vocabLookupPlaceholder" placeholder="輸入英文單字或片語，例如: look forward to">
+                    <button id="btnClearVocabLookup" class="vocab-clear-btn hidden" aria-label="Clear input">&times;</button>
+                </div>
                 <button class="generate-btn vocab-lookup-btn" id="btnVocabLookup" data-i18n="vocabLookupBtn">查詢</button>
             </div>
             <p class="vocab-lookup-hint" data-i18n="vocabLookupHint">可查詢單字或常用片語、例句，並加入 SRS 單字本複習。</p>
