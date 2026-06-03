@@ -14,6 +14,9 @@ export const ICONS = {
 
 export const state = {
     apiKey: '',
+    openaiApiKey: '',
+    provider: 'gemini',
+    selectedModel: '',
     targetScore: 700,
     selectedVoice: 'random',
     practiceMode: 'article',
@@ -71,6 +74,33 @@ export function getNextReviewTime(level) {
 export const TEXT_MODEL = "gemini-2.5-flash";
 export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 export const LIVE_AUDIO_MODEL = "gemini-2.5-flash-native-audio-latest";
+
+export const GEMINI_TEXT_MODELS = [
+    { id: 'gemini-2.5-flash', labelKey: 'modelGemini25Flash' },
+    { id: 'gemini-2.5-pro', labelKey: 'modelGemini25Pro' },
+    { id: 'gemini-2.0-flash', labelKey: 'modelGemini20Flash' },
+];
+
+export const OPENAI_TEXT_MODEL = 'gpt-4o-mini';
+export const OPENAI_TTS_MODEL = 'tts-1';
+
+export const OPENAI_TEXT_MODELS = [
+    { id: 'gpt-4o-mini', labelKey: 'modelGpt4oMini' },
+    { id: 'gpt-4o', labelKey: 'modelGpt4o' },
+    { id: 'o4-mini', labelKey: 'modelO4Mini' },
+];
+
+export const OPENAI_VOICE_OPTIONS = [
+    { name: 'random', labelKey: 'voiceOptionRandomLabel', descKey: 'voiceOptionRandomDesc' },
+    { name: 'alloy', labelKey: 'voiceOptionAlloyLabel', descKey: 'voiceOptionAlloyDesc' },
+    { name: 'echo', labelKey: 'voiceOptionEchoLabel', descKey: 'voiceOptionEchoDesc' },
+    { name: 'fable', labelKey: 'voiceOptionFableLabel', descKey: 'voiceOptionFableDesc' },
+    { name: 'onyx', labelKey: 'voiceOptionOnyxLabel', descKey: 'voiceOptionOnyxDesc' },
+    { name: 'nova', labelKey: 'voiceOptionNovaLabel', descKey: 'voiceOptionNovaDesc' },
+    { name: 'shimmer', labelKey: 'voiceOptionShimmerLabel', descKey: 'voiceOptionShimmerDesc' },
+];
+
+export const OPENAI_VOICE_NAMES = OPENAI_VOICE_OPTIONS.filter(v => v.name !== 'random').map(v => v.name);
 
 export const VOICE_OPTIONS = [
     { name: 'random', labelKey: 'voiceOptionRandomLabel', descKey: 'voiceOptionRandomDesc' },

@@ -42,11 +42,19 @@ export function setupAudio(base64) {
     audioEl.pause();
     progressBar.style.width = '0%';
 
-    const bc = atob(base64), bn = new Array(bc.length);
-    for (let i = 0; i < bc.length; i++) bn[i] = bc.charCodeAt(i);
-    const wavBlob = pcmToWavBlob(new Uint8Array(bn), 24000);
+    let audioBlob;
+    if (base64.startsWith('mp3:')) {
+        const raw = atob(base64.slice(4));
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        audioBlob = new Blob([bytes], { type: 'audio/mpeg' });
+    } else {
+        const bc = atob(base64), bn = new Array(bc.length);
+        for (let i = 0; i < bc.length; i++) bn[i] = bc.charCodeAt(i);
+        audioBlob = pcmToWavBlob(new Uint8Array(bn), 24000);
+    }
     if (state.audioBlobUrl) URL.revokeObjectURL(state.audioBlobUrl);
-    state.audioBlobUrl = URL.createObjectURL(wavBlob);
+    state.audioBlobUrl = URL.createObjectURL(audioBlob);
     audioEl.src = state.audioBlobUrl;
     audioEl.playbackRate = state.playbackSpeed;
 

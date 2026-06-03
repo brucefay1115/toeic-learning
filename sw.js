@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'toeic-tutor-static';
-const CACHE_NAME = `${CACHE_PREFIX}-v3`;
+const CACHE_NAME = `${CACHE_PREFIX}-v4`;
 
 const STATIC_ASSETS = [
   './manifest.json',
@@ -9,6 +9,8 @@ const STATIC_ASSETS = [
   './assets/js/utils.js',
   './assets/js/db.js',
   './assets/js/apiGemini.js',
+  './assets/js/apiOpenAI.js',
+  './assets/js/apiProvider.js',
   './assets/js/render.js',
   './assets/js/practiceViews.js',
   './assets/js/vocab.js',
@@ -76,6 +78,8 @@ self.addEventListener('fetch', (event) => {
 
   if (
     url.includes('generativelanguage.googleapis.com') ||
+    url.includes('api.openai.com') ||
+    url.includes('api.languagetool.org') ||
     url.includes('version.json') ||
     url.includes('accounts.google.com') ||
     url.includes('googleapis.com/drive') ||

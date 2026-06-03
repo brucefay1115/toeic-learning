@@ -1,9 +1,9 @@
 // App entry point: initialisation, tab switching, event binding, module wiring.
 
-import { state, VOICE_OPTIONS, VOICE_NAMES, SPEAKING_ACCENT_OPTIONS, ICONS } from './state.js';
+import { state, VOICE_OPTIONS, VOICE_NAMES, SPEAKING_ACCENT_OPTIONS, ICONS, GEMINI_TEXT_MODELS, OPENAI_TEXT_MODELS, OPENAI_VOICE_OPTIONS, OPENAI_VOICE_NAMES } from './state.js';
 import { speakText } from './utils.js';
 import { DB } from './db.js';
-import { fetchGeminiText, fetchGeminiTTS, fetchExamQuestions, fetchExamWrongAnswerExplanations } from './apiGemini.js';
+import { fetchGeminiText, fetchGeminiTTS, fetchExamQuestions, fetchExamWrongAnswerExplanations } from './apiProvider.js';
 import { DriveSync } from './driveSync.js';
 import { setupAudio } from './audioPlayer.js';
 import { renderContent, toggleEnglish, toggleTranslation, updateToggleButtons } from './render.js';
@@ -191,10 +191,21 @@ renderSpeakingLevelSwitch();
 
 /* ── Voice chips ── */
 const voiceSelector = document.getElementById('voiceSelector');
+function getCurrentVoiceOptions() {
+    return state.provider === 'openai' ? OPENAI_VOICE_OPTIONS : VOICE_OPTIONS;
+}
+function getCurrentVoiceNames() {
+    return state.provider === 'openai' ? OPENAI_VOICE_NAMES : VOICE_NAMES;
+}
 function renderVoiceOptions() {
     if (!voiceSelector) return;
+    const opts = getCurrentVoiceOptions();
+    const validNames = opts.map(o => o.name);
+    if (!validNames.includes(state.selectedVoice)) {
+        state.selectedVoice = 'random';
+    }
     voiceSelector.innerHTML = '';
-    VOICE_OPTIONS.forEach((opt) => {
+    opts.forEach((opt) => {
         const chip = document.createElement('div');
         chip.className = `voice-chip ${opt.name === state.selectedVoice ? 'active' : ''}`;
         chip.innerHTML = `<span>${t(opt.labelKey)}</span><span class="voice-desc">${t(opt.descKey)}</span>`;
@@ -241,6 +252,82 @@ const announcementMessageEl = document.getElementById('announcementMessage');
 const localeSelect = document.getElementById('localeSelect');
 const APP_VERSION_CACHE_KEY = 'app_version_display';
 
+const providerSelect = document.getElementById('providerSelect');
+const modelSelect = document.getElementById('modelSelect');
+
+function getModelsForProvider(provider) {
+    return provider === 'openai' ? OPENAI_TEXT_MODELS : GEMINI_TEXT_MODELS;
+}
+
+const CUSTOM_MODEL_VALUE = '__custom__';
+
+function syncCustomModelRow() {
+    const row = document.getElementById('customModelRow');
+    if (!row) return;
+    const isCustom = modelSelect?.value === CUSTOM_MODEL_VALUE;
+    row.classList.toggle('hidden', !isCustom);
+    if (isCustom) {
+        const inp = document.getElementById('customModelInput');
+        if (inp && !inp.value && state.selectedModel && state.selectedModel !== CUSTOM_MODEL_VALUE) {
+            inp.value = state.selectedModel;
+        }
+    }
+}
+
+function renderModelOptions(provider) {
+    if (!modelSelect) return;
+    modelSelect.innerHTML = '';
+    const models = getModelsForProvider(provider);
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        opt.textContent = t(m.labelKey);
+        modelSelect.appendChild(opt);
+    });
+    const customOpt = document.createElement('option');
+    customOpt.value = CUSTOM_MODEL_VALUE;
+    customOpt.textContent = t('modelCustomLabel');
+    modelSelect.appendChild(customOpt);
+
+    const knownIds = models.map(m => m.id);
+    const current = state.selectedModel;
+    if (!current || knownIds.includes(current)) {
+        modelSelect.value = current && knownIds.includes(current) ? current : models[0].id;
+        state.selectedModel = modelSelect.value;
+    } else {
+        modelSelect.value = CUSTOM_MODEL_VALUE;
+        const inp = document.getElementById('customModelInput');
+        if (inp) inp.value = current;
+    }
+    syncCustomModelRow();
+}
+
+function syncProviderKeyUI(provider) {
+    const geminiSection = document.getElementById('geminiKeySection');
+    const openaiSection = document.getElementById('openaiKeySection');
+    if (geminiSection) geminiSection.classList.toggle('hidden', provider === 'openai');
+    if (openaiSection) openaiSection.classList.toggle('hidden', provider !== 'openai');
+}
+
+if (providerSelect) {
+    providerSelect.onchange = () => {
+        const p = providerSelect.value;
+        state.provider = p;
+        renderModelOptions(p);
+        syncProviderKeyUI(p);
+        renderVoiceOptions();
+    };
+}
+
+if (modelSelect) {
+    modelSelect.onchange = () => {
+        syncCustomModelRow();
+        if (modelSelect.value !== CUSTOM_MODEL_VALUE) {
+            state.selectedModel = modelSelect.value;
+        }
+    };
+}
+
 function populateLocaleSelector() {
     if (!localeSelect) return;
     localeSelect.innerHTML = '';
@@ -258,6 +345,7 @@ function applyLocaleToUI() {
     document.title = t('appTitle');
     setAnnouncementContent();
     renderVoiceOptions();
+    renderModelOptions(state.provider);
     syncSpeakingAccentSelector();
     renderSpeakingLevelSwitch();
     const activeTopicChip = document.querySelector('#speakingPresetGroup .topic-chip.active');
@@ -292,24 +380,45 @@ document.getElementById('btnSettings').onclick = () => {
     document.getElementById('apiKeyInput').value = state.apiKey;
     const btnClearApiKey = document.getElementById('btnClearApiKey');
     if (btnClearApiKey) btnClearApiKey.classList.toggle('hidden', !state.apiKey);
-    document.getElementById('btnCloseKeyModal').style.display = state.apiKey ? 'flex' : 'none';
+    const openaiInput = document.getElementById('openaiApiKeyInput');
+    if (openaiInput) openaiInput.value = state.openaiApiKey;
+    const btnClearOpenAI = document.getElementById('btnClearOpenAIApiKey');
+    if (btnClearOpenAI) btnClearOpenAI.classList.toggle('hidden', !state.openaiApiKey);
+    if (providerSelect) providerSelect.value = state.provider;
+    renderModelOptions(state.provider);
+    syncProviderKeyUI(state.provider);
+    const hasActiveKey = state.provider === 'openai' ? !!state.openaiApiKey : !!state.apiKey;
+    document.getElementById('btnCloseKeyModal').style.display = hasActiveKey ? 'flex' : 'none';
     if (localeSelect) localeSelect.value = getLocale();
     DriveSync.updateUI();
     keyModal.classList.add('active');
 };
 
 async function saveApiKey() {
-    const v = document.getElementById('apiKeyInput').value.trim();
-    if (!v) {
-        state.apiKey = '';
-        await DB.setSetting('gemini_api_key', null);
-        document.getElementById('btnCloseKeyModal').style.display = 'none';
-        keyModal.classList.remove('active');
-        return;
-    }
-    state.apiKey = v;
-    await DB.setSetting('gemini_api_key', v);
+    const geminiVal = document.getElementById('apiKeyInput').value.trim();
+    const openaiInput = document.getElementById('openaiApiKeyInput');
+    const openaiVal = openaiInput ? openaiInput.value.trim() : '';
+    const providerVal = providerSelect ? providerSelect.value : state.provider;
+    const rawModelVal = modelSelect ? modelSelect.value : state.selectedModel;
+    const customModelInp = document.getElementById('customModelInput');
+    const modelVal = rawModelVal === CUSTOM_MODEL_VALUE
+        ? (customModelInp?.value.trim() || '')
+        : rawModelVal;
+
+    state.apiKey = geminiVal;
+    state.openaiApiKey = openaiVal;
+    state.provider = providerVal;
+    state.selectedModel = modelVal;
+
+    await DB.setSetting('gemini_api_key', geminiVal || null);
+    await DB.setSetting('openai_api_key', openaiVal || null);
+    await DB.setSetting('selected_provider', providerVal);
+    await DB.setSetting('selected_model', modelVal || null);
+
+    const hasActiveKey = providerVal === 'openai' ? !!openaiVal : !!geminiVal;
+    document.getElementById('btnCloseKeyModal').style.display = hasActiveKey ? 'flex' : 'none';
     keyModal.classList.remove('active');
+    renderVoiceOptions();
 }
 
 function setAppVersionText(text) {
@@ -599,7 +708,87 @@ if (btnClearApiKey) {
         btnClearApiKey.classList.add('hidden');
     };
 }
+const openaiApiKeyInput = document.getElementById('openaiApiKeyInput');
+const btnClearOpenAIApiKey = document.getElementById('btnClearOpenAIApiKey');
+if (openaiApiKeyInput) {
+    openaiApiKeyInput.addEventListener('input', () => {
+        if (btnClearOpenAIApiKey) btnClearOpenAIApiKey.classList.toggle('hidden', !openaiApiKeyInput.value);
+    });
+}
+if (btnClearOpenAIApiKey) {
+    btnClearOpenAIApiKey.onclick = () => {
+        if (openaiApiKeyInput) {
+            openaiApiKeyInput.value = '';
+            openaiApiKeyInput.focus();
+        }
+        btnClearOpenAIApiKey.classList.add('hidden');
+    };
+}
 document.getElementById('btnCloseKeyModal').onclick = () => keyModal.classList.remove('active');
+
+const btnTestApiKey = document.getElementById('btnTestApiKey');
+const apiTestResult = document.getElementById('apiTestResult');
+
+function showTestResult(ok, message) {
+    if (!apiTestResult) return;
+    apiTestResult.style.display = 'block';
+    apiTestResult.style.background = ok ? 'var(--success-bg, #d1fae5)' : 'var(--error-bg, #fee2e2)';
+    apiTestResult.style.color = ok ? 'var(--success-text, #065f46)' : 'var(--error-text, #991b1b)';
+    apiTestResult.style.border = `1px solid ${ok ? 'var(--success-border, #6ee7b7)' : 'var(--error-border, #fca5a5)'}`;
+    apiTestResult.textContent = message;
+}
+
+async function testApiKey() {
+    if (!btnTestApiKey) return;
+    const provider = providerSelect ? providerSelect.value : state.provider;
+    const geminiKey = document.getElementById('apiKeyInput')?.value.trim();
+    const openaiKey = document.getElementById('openaiApiKeyInput')?.value.trim();
+    const rawModel = modelSelect?.value;
+    const customInp = document.getElementById('customModelInput');
+    const model = rawModel === CUSTOM_MODEL_VALUE
+        ? (customInp?.value.trim() || '')
+        : (rawModel || '');
+
+    const key = provider === 'openai' ? openaiKey : geminiKey;
+    if (!key) {
+        showTestResult(false, t('settingsTestNoKey'));
+        return;
+    }
+    btnTestApiKey.disabled = true;
+    btnTestApiKey.textContent = t('settingsTestTesting');
+    if (apiTestResult) apiTestResult.style.display = 'none';
+
+    try {
+        if (provider === 'openai') {
+            const res = await fetch('https://api.openai.com/v1/models', {
+                headers: { 'Authorization': `Bearer ${key}` }
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d?.error?.message || `HTTP ${res.status}`);
+            }
+            showTestResult(true, t('settingsTestSuccess'));
+        } else {
+            const testModel = model || 'gemini-2.5-flash';
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${key}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: 'Hi' }] }] })
+            });
+            const d = await res.json().catch(() => ({}));
+            if (!res.ok || d?.error) throw new Error(d?.error?.message || `HTTP ${res.status}`);
+            showTestResult(true, t('settingsTestSuccess'));
+        }
+    } catch (err) {
+        showTestResult(false, t('settingsTestFailed', { message: err.message }));
+    } finally {
+        btnTestApiKey.disabled = false;
+        btnTestApiKey.textContent = t('settingsTestApiKey');
+    }
+}
+
+if (btnTestApiKey) btnTestApiKey.onclick = testApiKey;
+
 if (localeSelect) {
     localeSelect.onchange = async (event) => {
         const locale = setLocale(event.target.value);
@@ -867,7 +1056,7 @@ async function handleExplainWrongAnswers() {
 }
 
 EXAM_BTN.onclick = async () => {
-    if (!state.apiKey) return alert(t('alertSetApiKeyFirst'));
+    if (!hasActiveApiKey()) return alert(t('alertSetApiKeyFirst'));
     const finishLoading = setButtonLoading(EXAM_BTN, t('loadingGeneratingQuestions'));
     try {
         const examData = await fetchExamQuestions(state.targetScore);
@@ -955,8 +1144,12 @@ document.getElementById('btnExamBack').onclick = () => viewShowExamConfig(setLea
 /* ── Generate button ── */
 const GENERATE_BTN = document.getElementById('btnGenerate');
 
+function hasActiveApiKey() {
+    return state.provider === 'openai' ? !!state.openaiApiKey : !!state.apiKey;
+}
+
 GENERATE_BTN.onclick = async () => {
-    if (!state.apiKey) return alert(t('alertSetApiKeyFirst'));
+    if (!hasActiveApiKey()) return alert(t('alertSetApiKeyFirst'));
     const finishLoading = setButtonLoading(GENERATE_BTN, t('loadingGenerating'));
     document.getElementById('learningArea').classList.add('hidden');
     document.getElementById('playerBar').classList.add('hidden');
@@ -970,8 +1163,9 @@ GENERATE_BTN.onclick = async () => {
         }
         state.currentData = contentData;
 
+        const voicePool = getCurrentVoiceNames();
         const voiceName = state.selectedVoice === 'random'
-            ? VOICE_NAMES[Math.floor(Math.random() * VOICE_NAMES.length)]
+            ? voicePool[Math.floor(Math.random() * voicePool.length)]
             : state.selectedVoice;
         state.lastUsedVoice = voiceName;
 
@@ -1010,7 +1204,18 @@ GENERATE_BTN.onclick = async () => {
             const lk = safeLocalGet('gemini_api_key');
             if (lk) { apiKey = lk; await DB.setSetting('gemini_api_key', lk); safeLocalRemove('gemini_api_key'); }
         }
-        if (apiKey) state.apiKey = apiKey; else keyModal.classList.add('active');
+        if (apiKey) state.apiKey = apiKey;
+        const openaiKey = await DB.getSetting('openai_api_key');
+        if (openaiKey) state.openaiApiKey = openaiKey;
+        const savedProvider = await DB.getSetting('selected_provider');
+        if (savedProvider) state.provider = savedProvider;
+        const savedModel = await DB.getSetting('selected_model');
+        if (savedModel) state.selectedModel = savedModel;
+        const hasActiveKey = state.provider === 'openai' ? !!state.openaiApiKey : !!state.apiKey;
+        if (!hasActiveKey) keyModal.classList.add('active');
+        renderModelOptions(state.provider);
+        syncProviderKeyUI(state.provider);
+        renderVoiceOptions();
         renderHistory();
         await loadLastSession();
         setPracticeMode('article');

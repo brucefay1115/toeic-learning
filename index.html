@@ -399,18 +399,47 @@
 
     <div class="modal-overlay" id="keyModal">
         <div class="modal-card">
+            <div class="settings-scroll-body">
             <h3 data-i18n="settingsTitle">設定 Gemini API</h3>
 
             <section class="settings-section">
-                <h3 class="practice-label settings-label-center" data-i18n="settingsApiLabel">Gemini API Key</h3>
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-guide-link settings-api-guide-link">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-                    <span><span data-i18n="settingsGetApiKey">點此取得 Google API Key</span><br><span style="font-size:11px; font-weight:400;" data-i18n="settingsGoogleLoginHint">(需登入 Google 帳號)</span></span>
-                </a>
-                <div class="input-group vocab-lookup-input-inner" style="margin-bottom: 20px;">
-                    <input type="password" id="apiKeyInput" style="padding-right: 32px;" placeholder="Paste API Key here...">
-                    <button type="button" id="btnClearApiKey" class="vocab-clear-btn hidden" aria-label="Clear input">&times;</button>
+                <h3 class="practice-label settings-label-center" data-i18n="settingsProviderLabel">API 供應商</h3>
+                <select id="providerSelect" class="topic-input" style="margin-bottom: 12px;">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                </select>
+                <h3 class="practice-label settings-label-center" data-i18n="settingsModelLabel">模型</h3>
+                <select id="modelSelect" class="topic-input" style="margin-bottom: 8px;"></select>
+                <div id="customModelRow" class="hidden" style="margin-bottom: 20px;">
+                    <input type="text" id="customModelInput" class="topic-input" style="width:100%; box-sizing:border-box;" placeholder="e.g. gemini-2.5-pro-latest">
                 </div>
+
+                <div id="geminiKeySection">
+                    <h3 class="practice-label settings-label-center" data-i18n="settingsGeminiApiLabel">Gemini API Key</h3>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="api-guide-link settings-api-guide-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                        <span><span data-i18n="settingsGetApiKey">點此取得 Google API Key</span><br><span style="font-size:11px; font-weight:400;" data-i18n="settingsGoogleLoginHint">(需登入 Google 帳號)</span></span>
+                    </a>
+                    <div class="input-group vocab-lookup-input-inner" style="margin-bottom: 8px;">
+                        <input type="password" id="apiKeyInput" style="padding-right: 32px;" placeholder="Paste Gemini API Key here...">
+                        <button type="button" id="btnClearApiKey" class="vocab-clear-btn hidden" aria-label="Clear input">&times;</button>
+                    </div>
+                </div>
+
+                <div id="openaiKeySection" class="hidden">
+                    <h3 class="practice-label settings-label-center" data-i18n="settingsOpenAIApiLabel">OpenAI API Key</h3>
+                    <a href="https://platform.openai.com/api-keys" target="_blank" class="api-guide-link settings-api-guide-link">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                        <span><span data-i18n="settingsGetOpenAIApiKey">點此取得 OpenAI API Key</span><br><span style="font-size:11px; font-weight:400;" data-i18n="settingsOpenAILoginHint">(需登入 OpenAI 帳號)</span></span>
+                    </a>
+                    <div class="input-group vocab-lookup-input-inner" style="margin-bottom: 8px;">
+                        <input type="password" id="openaiApiKeyInput" style="padding-right: 32px;" placeholder="Paste OpenAI API Key here...">
+                        <button type="button" id="btnClearOpenAIApiKey" class="vocab-clear-btn hidden" aria-label="Clear input">&times;</button>
+                    </div>
+                </div>
+
+                <button type="button" id="btnTestApiKey" class="wm-btn secondary" style="width:100%; margin-top:4px;" data-i18n="settingsTestApiKey">測試 API Key</button>
+                <div id="apiTestResult" style="display:none; font-size:13px; padding:8px 10px; border-radius:8px; margin-top:8px;"></div>
                 <p style="font-size: 12px; color: #999; margin-top: 10px;" data-i18n="settingsLocalStorageNote">Key 僅儲存於本地裝置 (IndexedDB)，不會備份到 Google Drive</p>
             </section>
 
@@ -454,6 +483,7 @@
             <div class="settings-bottom-actions">
                 <button class="generate-btn settings-action-btn" id="btnSaveApiKey" data-i18n="settingsSave">儲存</button>
                 <button class="wm-btn secondary settings-action-btn" id="btnCloseKeyModal" style="display: none;" data-i18n="settingsClose">關閉</button>
+            </div>
             </div>
         </div>
     </div>

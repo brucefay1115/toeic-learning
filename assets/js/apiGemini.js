@@ -17,8 +17,13 @@ function parseJsonCandidateText(rawText) {
     return JSON.parse(cleaned);
 }
 
+function getEffectiveGeminiModel(fallback) {
+    return (state.selectedModel && state.selectedModel !== '__custom__' ? state.selectedModel : null) || fallback;
+}
+
 async function fetchJsonFromPrompt(model, prompt) {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${state.apiKey}`, {
+    const effectiveModel = getEffectiveGeminiModel(model);
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${state.apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

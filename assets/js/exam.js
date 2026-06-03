@@ -1,6 +1,6 @@
 // Exam model helpers: normalize, render, grade, and explanation merge.
 
-import { fetchGeminiTTS } from './apiGemini.js';
+import { fetchGeminiTTS } from './apiProvider.js';
 import { t } from './i18n.js';
 import { createId } from './id.js';
 import { pcmToWavBlob } from './audioCodec.js';
@@ -194,11 +194,19 @@ export async function playListeningQuestion(q, voiceName = 'Kore', prefetchedBas
             return { fallbackUsed: true, message: lastError?.message || '', base64: '' };
         }
     }
-    const bytes = atob(base64);
-    const len = bytes.length;
-    const pcm = new Uint8Array(len);
-    for (let i = 0; i < len; i++) pcm[i] = bytes.charCodeAt(i);
-    const blob = pcmToWavBlob(pcm, 24000);
+    let blob;
+    if (base64.startsWith('mp3:')) {
+        const raw = atob(base64.slice(4));
+        const mp3Bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) mp3Bytes[i] = raw.charCodeAt(i);
+        blob = new Blob([mp3Bytes], { type: 'audio/mpeg' });
+    } else {
+        const bytes = atob(base64);
+        const len = bytes.length;
+        const pcm = new Uint8Array(len);
+        for (let i = 0; i < len; i++) pcm[i] = bytes.charCodeAt(i);
+        blob = pcmToWavBlob(pcm, 24000);
+    }
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     audio.onended = () => URL.revokeObjectURL(url);

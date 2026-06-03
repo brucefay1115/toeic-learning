@@ -349,6 +349,7 @@ export async function startSpeakingSession(input, callbacks = {}) {
     const score = typeof input === 'object' && input !== null ? Number(input.score) || 700 : 700;
     const level = typeof input === 'object' && input !== null ? String(input.level || '').trim() : '';
     const accent = typeof input === 'object' && input !== null ? String(input.accent || 'random').trim() : 'random';
+    if (state.provider === 'openai') throw new Error(t('speakingGeminiOnly'));
     if (!state.apiKey) throw new Error(t('alertSetApiKeyFirst'));
     if (!topic) throw new Error(t('alertSelectTopicFirst'));
     if (liveSession || mediaStream) await stopSpeakingSession();

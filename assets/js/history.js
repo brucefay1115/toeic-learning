@@ -2,7 +2,7 @@
 
 import { state, ICONS, VOICE_NAMES } from './state.js';
 import { DB } from './db.js';
-import { fetchGeminiTTS } from './apiGemini.js';
+import { fetchGeminiTTS } from './apiProvider.js';
 import { renderContent } from './render.js';
 import { setupAudio, setPlayerLoading } from './audioPlayer.js';
 import { t } from './i18n.js';
