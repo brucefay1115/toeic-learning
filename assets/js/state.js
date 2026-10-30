@@ -68,9 +68,9 @@ export function getNextReviewTime(level) {
     return now.getTime() + days * 86400000;
 }
 
-export const TEXT_MODEL =  "gemini-2.5-flash";
-export const TTS_MODEL = "gemini-2.5-flash-preview-tts";
-export const LIVE_AUDIO_MODEL = "gemini-2.5-flash-native-audio-latest";
+export const TEXT_MODEL =  "gemini-3.5-flash-lite";
+export const TTS_MODEL = "gemini-3.8-flash-lite-tts";
+export const LIVE_AUDIO_MODEL = "gemini-3.8-live";
 
 export const VOICE_OPTIONS = [
     { name: 'random', labelKey: 'voiceOptionRandomLabel', descKey: 'voiceOptionRandomDesc' },
